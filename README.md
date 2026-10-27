@@ -24,7 +24,7 @@ The optional precision narrows what to test, for example a module or an endpoint
 Stacks: .NET, Python, Go, Node.js, PHP, Ruby, Rust and Java (Spring Boot, Quarkus, Micronaut).
 CI systems: GitHub Actions, GitLab CI, Jenkins, Azure DevOps and CircleCI, plus a generic fallback for any other.
 
-The .NET, Python and Spring Boot references and the Jenkins reference were tried end-to-end, each with a line saying what the trial covered and what it did not. The others are written from the official documentation and have not been tried yet, so each says so in its `Status:` line.
+The .NET, Python and Spring Boot references and the Jenkins, GitHub Actions and GitLab CI references were tried end-to-end (GitHub Actions with `act` and GitLab CI with `gitlab-ci-local`, both run locally), each with a line saying what the trial covered and what it did not. The others are written from the official documentation and have not been tried yet, so each says so in its `Status:` line.
 
 The skill asks before every change and runs nothing in CI by itself. It only writes the CI step, and you decide when it runs.
 
