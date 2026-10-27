@@ -12,11 +12,18 @@ Status: written from official docs, not yet tried
 ## Wrapping the test step
 
 - [ ] The agent needs the `perf-sentinel` binary before the tests. Install it from the official release with the SHA256 check, as in the `Install` section of [perf-sentinel.md](../perf-sentinel.md). Use the current release tag in an `environment` variable such as `PERF_SENTINEL_VERSION`, never `latest`, and write no number from this file.
+- [ ] The release asset lands in the workspace as `perf-sentinel-linux-amd64`. Rename it to `perf-sentinel`, make it executable, and call it as `./perf-sentinel` in every stage, `capture` included, as Perf Sentinel's template does. `sh` starts in the workspace root, so keep the calls out of a `dir(...)` block or use an absolute path there. Use one form throughout, never a bare `perf-sentinel` next to `./perf-sentinel`.
 - [ ] Prefix the existing test command in its `sh` step with `capture`. Never add a second stage that reruns the suite.
 - [ ] Set the exporter variables for that step: [perf-sentinel.md](../perf-sentinel.md), section `capture`.
+- [ ] Write the capture file outside the build directory. A `clean` goal (`mvn clean verify`) deletes `target/`, under the listener's feet. Use a folder the build never cleans, such as `perf-sentinel-out/` under the workspace root, and read it from the later stages.
 - [ ] The template pins an agent label (`linux`) because it uses `curl` and `sha256sum`. Keep the agent the test stage already uses.
 
 ```groovy
+// pipeline level, so every stage reads the same path
+environment {
+    PERF_SENTINEL_TRACES = 'perf-sentinel-out/traces.ndjson'
+}
+
 stage('Integration tests') {
     environment {
         OTEL_EXPORTER_OTLP_ENDPOINT = 'http://localhost:4318'
@@ -24,7 +31,7 @@ stage('Integration tests') {
         OTEL_TRACES_SAMPLER         = 'always_on'
     }
     steps {
-        sh 'perf-sentinel capture --output target/traces.ndjson -- <existing test command>'
+        sh './perf-sentinel capture --output "$PERF_SENTINEL_TRACES" -- <existing test command>'
     }
 }
 ```
@@ -44,11 +51,11 @@ stage('Perf Sentinel analyze') {
         catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
             sh '''
                 set -euo pipefail
-                ./perf-sentinel analyze --input target/traces.ndjson --config .perf-sentinel.toml --format sarif > results.sarif.tmp
+                ./perf-sentinel analyze --input "$PERF_SENTINEL_TRACES" --config .perf-sentinel.toml --format sarif > results.sarif.tmp
                 mv -f results.sarif.tmp results.sarif
-                ./perf-sentinel analyze --input target/traces.ndjson --config .perf-sentinel.toml --format json > report.json.tmp
+                ./perf-sentinel analyze --input "$PERF_SENTINEL_TRACES" --config .perf-sentinel.toml --format json > report.json.tmp
                 mv -f report.json.tmp report.json
-                ./perf-sentinel report --input target/traces.ndjson --config .perf-sentinel.toml --output report.html
+                ./perf-sentinel report --input "$PERF_SENTINEL_TRACES" --config .perf-sentinel.toml --output report.html
             '''
         }
     }
@@ -66,7 +73,7 @@ stage('Perf Sentinel analyze') {
 
 The gate is the team's choice. Recommend it on pull request builds only, show the change, never turn it on yourself.
 
-- [ ] A dedicated stage that re-runs `perf-sentinel analyze --ci --input ... --config ...`. Exit `1` fails the stage, `75` is a tooling error: [perf-sentinel.md](../perf-sentinel.md), section `Exit codes`.
+- [ ] A dedicated stage that re-runs `./perf-sentinel analyze --ci --input ... --config ...`. Exit `1` fails the stage, `75` is a tooling error: [perf-sentinel.md](../perf-sentinel.md), section `Exit codes`.
 - [ ] Guard it with a `when` block that requires both `env.CHANGE_ID != null` and `fileExists('results.sarif')`, as in the snippet. Branch builds skip it and stay green. The `fileExists` check keeps a tooling failure from showing as a breach.
 - [ ] Warnings NG can add a second check with `qualityGates`. Perf Sentinel's template applies it only when `env.CHANGE_ID != null`, so the post block does not reintroduce blocking on branch builds.
 - [ ] A checksum mismatch must always fail the build. Wrap only the download in `catchError`, never the verification.
@@ -81,7 +88,7 @@ stage('Quality gate (PR only)') {
         }
     }
     steps {
-        sh './perf-sentinel analyze --ci --input target/traces.ndjson --config .perf-sentinel.toml'
+        sh './perf-sentinel analyze --ci --input "$PERF_SENTINEL_TRACES" --config .perf-sentinel.toml'
     }
 }
 ```

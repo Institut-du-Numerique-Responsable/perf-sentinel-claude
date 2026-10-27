@@ -10,12 +10,23 @@ Status: written from official docs, not yet tried
 
 ## Wrapping the test step
 
-- [ ] Install Perf Sentinel before the test step, from the official release with the SHA256 check, as in the `Install` section of [perf-sentinel.md](../perf-sentinel.md). Use the current release tag in a workflow variable such as `PERF_SENTINEL_VERSION`, never `latest`, and write no number from this file.
+- [ ] Install Perf Sentinel in its own step before the test step, from the official release with the SHA256 check, as in the `Install` section of [perf-sentinel.md](../perf-sentinel.md). Use the current release tag in a workflow variable such as `PERF_SENTINEL_VERSION`, never `latest`, and write no number from this file.
+- [ ] The release asset lands in the current directory as `perf-sentinel-linux-amd64`, not on `PATH`. Install it as `bin/perf-sentinel` under the workspace and append that directory to `$GITHUB_PATH`, as Perf Sentinel's template does. A path added to `$GITHUB_PATH` applies to the later steps only, never to the step that adds it, so the install cannot share a step with the tests.
 - [ ] Prefix the existing test command with `capture`. Never add a second step that reruns the suite.
 - [ ] Set the exporter variables on the step. Both are needed, and the sampler must keep every trace: [perf-sentinel.md](../perf-sentinel.md), section `capture`.
 - [ ] Write the capture file outside the build directory, in a path the later steps read.
 
 ```yaml
+- name: Install Perf Sentinel
+  run: |
+    set -euo pipefail
+    BASE_URL="https://github.com/Institut-du-Numerique-Responsable/perf-sentinel/releases/download/v${PERF_SENTINEL_VERSION}"
+    curl -sSLf -o perf-sentinel-linux-amd64 "${BASE_URL}/perf-sentinel-linux-amd64"
+    curl -sSLf -o SHA256SUMS.txt "${BASE_URL}/SHA256SUMS.txt"
+    grep 'perf-sentinel-linux-amd64' SHA256SUMS.txt | sha256sum -c -
+    mkdir -p "${GITHUB_WORKSPACE}/bin"
+    install -m 0755 perf-sentinel-linux-amd64 "${GITHUB_WORKSPACE}/bin/perf-sentinel"
+    echo "${GITHUB_WORKSPACE}/bin" >> "${GITHUB_PATH}"
 - name: Integration tests under capture
   run: |
     set -euo pipefail
@@ -32,6 +43,7 @@ Status: written from official docs, not yet tried
 ## Analyze and archive
 
 - [ ] A report-only step after the tests, with no `--ci`, so a gate breach never hides the report. Run it on every branch and keep it even when the tests failed (`if: always()`).
+- [ ] Give it `id: analyze` and `continue-on-error: true`, as Perf Sentinel's template does. An empty capture makes `analyze` exit `75`, and without the tolerance that would turn every branch red with no gate enabled. Only the optional gate may fail the build. Later steps key off `steps.analyze.outcome`, and a closing step warns when it is not `success`.
 - [ ] Write SARIF and JSON, then HTML from `report`. `analyze` gives only text, SARIF and JSON.
 - [ ] Write each file under a `.tmp` name and rename it on success, so a crashed `analyze` leaves no empty file that later steps mistake for a report.
 - [ ] Archive the three files with `actions/upload-artifact`. Pin every third-party action to a full commit SHA, with the tag in a comment, and check the SHA upstream.
@@ -39,7 +51,9 @@ Status: written from official docs, not yet tried
 
 ```yaml
 - name: Perf Sentinel analyze
+  id: analyze
   if: always()
+  continue-on-error: true
   run: |
     set -euo pipefail
     T="${{ runner.temp }}/traces.ndjson"
@@ -56,6 +70,9 @@ Status: written from official docs, not yet tried
       findings.sarif
       report.json
       report.html
+- name: Report tooling failure
+  if: always() && steps.analyze.outcome != 'success'
+  run: echo "::warning::Perf Sentinel did not produce a report, the gate was skipped"
 ```
 
 ## Showing results in the PR
@@ -74,12 +91,12 @@ The gate is the team's choice. Recommend it on pull requests only, show the chan
 
 - [ ] Perf Sentinel's template reads the result already on disk: on a PR, a step fails when `jq -r '.quality_gate.passed' report.json` is not `true`. Exit codes of `analyze --ci` give the same verdict if the team prefers: `1` for a breach, `75` for a tooling error, [perf-sentinel.md](../perf-sentinel.md), section `Exit codes`.
 - [ ] On the main branch, the template only prints a `::warning::` when the gate would have failed, and the run stays green.
-- [ ] A tooling failure (download, `analyze` crash) is never a breach. The template tolerates a failed download with `continue-on-error: true`, but never a checksum mismatch, and ends with a `::warning::` step when `analyze` did not succeed.
+- [ ] A tooling failure (download, `analyze` crash) is never a breach. The gate step above runs only when `steps.analyze.outcome == 'success'`. The template tolerates a failed download too, but never a checksum mismatch.
 - [ ] To block merges, the team marks the job as a required status check in branch protection. That is a repository setting, say so and leave it to them.
 
 ```yaml
 - name: Quality gate (pull requests only)
-  if: github.event_name == 'pull_request'
+  if: github.event_name == 'pull_request' && steps.analyze.outcome == 'success'
   run: |
     [ "$(jq -r '.quality_gate.passed' report.json)" = "true" ] \
       || { echo "::error::Perf Sentinel quality gate failed"; exit 1; }
@@ -93,6 +110,7 @@ The gate is the team's choice. Recommend it on pull requests only, show the chan
 - Perf Sentinel, where SARIF shows up: https://perf-sentinel.dev/docs/CI#where-sarif-surfaces-in-each-provider
 - Perf Sentinel, acknowledgments: https://perf-sentinel.dev/docs/ACKNOWLEDGMENTS
 - GitHub, workflow syntax: https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions
+- GitHub, workflow commands (`GITHUB_PATH`): https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-commands
 - GitHub, `GITHUB_TOKEN` permissions: https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication
 - GitHub, uploading SARIF to Code Scanning: https://docs.github.com/en/code-security/code-scanning/integrating-with-code-scanning/uploading-a-sarif-file-to-github
 - GitHub, `actions/upload-artifact`: https://github.com/actions/upload-artifact

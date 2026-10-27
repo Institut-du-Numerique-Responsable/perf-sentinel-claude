@@ -17,11 +17,11 @@ Four results to obtain. The pipeline's own mechanism for each is the developer's
 - [ ] **Ack file honored.** `.perf-sentinel-acknowledgments.toml`, versioned in the repository, is read from the working directory of `analyze`. Entry template: [perf-sentinel.md](../perf-sentinel.md), section `Acknowledgment entry`.
 - [ ] **Optional gate.** `analyze --ci` runs on pull request builds only, so exit `1` fails that build and nothing fails on the main branch. The team decides, and the skill does not turn it on.
 
-The binary must be on the agent before `capture`: official release, SHA256 check, current release tag, as in the `Install` section of [perf-sentinel.md](../perf-sentinel.md). If the agents have no network access to GitHub releases, that is a question for the owner of the layer.
+The binary must be on the agent before `capture`: official release, SHA256 check, current release tag, as in the `Install` section of [perf-sentinel.md](../perf-sentinel.md). The binary must also be callable from the later steps: most CIs start each step in a new shell, so a `PATH` change needs the CI's own mechanism, or an absolute path in every call. If the agents have no network access to GitHub releases, that is a question for the owner of the layer.
 
 ## Analyze and archive
 
-- [ ] Report-only commands, in this shape: `perf-sentinel analyze --input <file> --config .perf-sentinel.toml --format sarif`, the same with `--format json`, and `perf-sentinel report --input <file> --config .perf-sentinel.toml --output report.html`. Only `analyze --ci` sets the gate exit code. `report` exits `0` even when the gate fails.
+- [ ] Report-only commands must not fail the build on their own: an empty capture makes `analyze` exit `75`, so tolerate that code here and let only the optional gate fail. The commands, in this shape: `perf-sentinel analyze --input <file> --config .perf-sentinel.toml --format sarif`, the same with `--format json`, and `perf-sentinel report --input <file> --config .perf-sentinel.toml --output report.html`. Only `analyze --ci` sets the gate exit code. `report` exits `0` even when the gate fails.
 - [ ] Exit codes to branch on: `1` is a breach, `75` is a tooling error, never a breach, [perf-sentinel.md](../perf-sentinel.md), section `Exit codes`. A pipeline that treats every non-zero code alike blocks on a download failure.
 - [ ] Where the pipeline offers a way to keep files with the build, use it for the three outputs. If it has none, say so.
 
