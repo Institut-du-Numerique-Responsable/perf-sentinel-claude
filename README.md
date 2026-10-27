@@ -7,7 +7,7 @@ It works from the diff, picks the instrumentation for your stack and wires the c
 ## Install
 
 ```
-/plugin marketplace add robintra/perf-sentinel-claude-plugin
+/plugin marketplace add Institut-du-Numerique-Responsable/perf-sentinel-claude-plugin
 /plugin install perf-sentinel@perf-sentinel
 ```
 

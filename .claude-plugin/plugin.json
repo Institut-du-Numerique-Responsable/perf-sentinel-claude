@@ -8,6 +8,6 @@
   },
   "license": "AGPL-3.0-only",
   "homepage": "https://perf-sentinel.dev",
-  "repository": "https://github.com/robintra/perf-sentinel-claude-plugin",
+  "repository": "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude-plugin",
   "keywords": ["performance", "testing", "n+1", "opentelemetry", "greenops"]
 }
