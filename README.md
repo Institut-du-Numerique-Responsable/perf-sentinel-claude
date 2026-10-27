@@ -30,6 +30,17 @@ The skill asks before every change and runs nothing in CI by itself. It only wri
 
 More about the tool at https://perf-sentinel.dev.
 
+## Development
+
+```
+python3 -m unittest scripts/test_check_plugin.py
+python3 scripts/check_plugin.py .
+claude plugin validate .
+claude plugin eval . --scaffold --trust-plugin --threshold 0.66 --no-publish --judge-model sonnet --allow-tools "Bash(git diff:*)" "Bash(git log:*)" "Bash(git status:*)" "Bash(git merge-base:*)" Write Edit
+```
+
+Grant `Write` and `Edit` at run level, otherwise the no-edit graders cannot fail. Keep concurrency low (`-j 1` or `-j 2`) to avoid process-limit failures.
+
 ## License
 
 AGPL-3.0-only, see [LICENSE](LICENSE).
