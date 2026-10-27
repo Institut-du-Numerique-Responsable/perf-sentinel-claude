@@ -65,7 +65,9 @@ def check_skill(skill_md, rel, out):
     if extra:
         out.append(Violation(rel, "frontmatter-keys", f"non-portable keys: {', '.join(extra)}"))
     desc = description(fm)
-    if desc is not None and len(desc) > 1024:
+    if not desc:
+        out.append(Violation(rel, "description-missing", "no description in the frontmatter"))
+    elif len(desc) > 1024:
         out.append(Violation(rel, "description-length", f"{len(desc)} characters, limit is 1024"))
     name = next((m.group(1).strip() for line in fm if (m := re.match(r"name:(.*)", line))), None)
     if name != skill_md.parent.name:

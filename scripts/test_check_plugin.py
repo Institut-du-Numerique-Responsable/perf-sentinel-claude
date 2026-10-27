@@ -76,6 +76,18 @@ class CheckPluginTest(unittest.TestCase):
         self.write("skills/perf-tests/SKILL.md", text)
         self.assertEqual(rule_ids(check(self.root)), ["description-length"])
 
+    def test_description_block_scalar(self):
+        block = "description: |\n  Writes performance\n  integration tests.\n"
+        self.write("skills/perf-tests/SKILL.md", SKILL.replace("description: Writes performance integration tests.\n", block))
+        self.assertEqual(check(self.root), [])
+        long_block = "description: |\n" + "".join(f"  {'x' * 100}\n" for _ in range(11))
+        self.write("skills/perf-tests/SKILL.md", SKILL.replace("description: Writes performance integration tests.\n", long_block))
+        self.assertEqual(rule_ids(check(self.root)), ["description-length"])
+
+    def test_description_missing(self):
+        self.write("skills/perf-tests/SKILL.md", SKILL.replace("description: Writes performance integration tests.\n", ""))
+        self.assertEqual(rule_ids(check(self.root)), ["description-missing"])
+
     def test_name_differs_from_dir(self):
         self.write("skills/perf-tests/SKILL.md", SKILL.replace("name: perf-tests", "name: perf-test"))
         self.assertEqual(rule_ids(check(self.root)), ["name-matches-dir"])
