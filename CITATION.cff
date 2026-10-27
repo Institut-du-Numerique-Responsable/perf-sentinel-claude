@@ -1,0 +1,36 @@
+# Citation metadata, readable by people, search engines and AI assistants.
+# Citation File Format 1.2.0, https://citation-file-format.github.io
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "Perf Sentinel plugin for Claude Code: performance integration tests checked by Perf Sentinel"
+abstract: "A Claude Code plugin whose perf-tests skill writes production-shaped performance integration tests for a change, runs them under Perf Sentinel to catch N+1, redundant and slow I/O before production, proposes targeted fixes and wires the check into CI."
+authors:
+  - given-names: "Robin"
+    family-names: "Trassard"
+    alias: "robintra"
+    affiliation: "Institut du Numérique Responsable"
+contact:
+  - given-names: "Robin"
+    family-names: "Trassard"
+    alias: "robintra"
+    affiliation: "Institut du Numérique Responsable"
+repository-code: "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude-plugin"
+url: "https://perf-sentinel.dev"
+license:
+  - Apache-2.0
+  - CC-BY-4.0
+keywords:
+  - "claude"
+  - "claude-code"
+  - "claude-code-plugin"
+  - "agent-skills"
+  - "opentelemetry"
+  - "performance"
+  - "integration-tests"
+  - "n-plus-one"
+  - "anti-patterns"
+  - "ci"
+  - "green-software"
+  - "sustainable-software"
+  - "devtools"

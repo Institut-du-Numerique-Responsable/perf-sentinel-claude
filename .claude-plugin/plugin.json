@@ -6,7 +6,7 @@
     "name": "Robin Trassard",
     "url": "https://github.com/robintra"
   },
-  "license": "AGPL-3.0-only",
+  "license": "Apache-2.0 AND CC-BY-4.0",
   "homepage": "https://perf-sentinel.dev",
   "repository": "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude-plugin",
   "keywords": ["performance", "testing", "n+1", "opentelemetry", "greenops"]

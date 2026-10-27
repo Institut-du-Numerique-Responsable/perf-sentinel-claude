@@ -1,7 +1,7 @@
 ---
 name: perf-tests
 description: Writes performance integration tests for the current code change and runs them under Perf Sentinel, so N+1 queries, redundant calls and other I/O waste show up in the pull request instead of in production. Use when the user runs /perf-sentinel:perf-tests, or says yes after you proposed it. When the user says a feature or bugfix is done, or asks for a review, and the change adds or modifies database queries, outbound HTTP or RPC calls, or message publishing, do not start this skill. Finish what the user asked, then add one short line, phrased as a question, that proposes /perf-sentinel:perf-tests with the reason from the diff (for example a query issued once per item), and wait for a yes. Do not propose it when the change only touches UI, CSS, templates, docs or code with no I/O. Not for load tests or concurrent-user benchmarks (k6, Gatling, JMeter, Locust), because Perf Sentinel judges one trace at a time.
-license: AGPL-3.0-only
+license: CC-BY-4.0 (see LICENSE)
 compatibility: Needs a repository checkout, Docker for database-backed tests, and the perf-sentinel binary or permission to install it.
 metadata:
   author: Robin Trassard
