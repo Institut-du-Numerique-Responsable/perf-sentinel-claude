@@ -1,6 +1,8 @@
 # GitLab CI
 
-Status: written from official docs, not yet tried
+Status: tried end-to-end
+
+Tried: `gitlab-ci-local` with the Docker executor on a native arm64 Docker host, the install job, a Maven wrapper with Failsafe and Testcontainers through the host Docker socket, a branch pipeline, failing tests, the gate on a simulated merge request pipeline with and without an N+1, a missing config file, a failed download, a corrupted asset, and the `jq` output checked against the Code Quality field list. Not tried: a GitLab instance (the merge request reports, the baseline comparison, the CI lint and "Pipelines must succeed" were not seen), real merge request variables (set by hand, and `gitlab-ci-local` puts a job with no `rules:` in merge request pipelines, which GitLab does not), the skipped stages after a failed `.pre` job (`gitlab-ci-local` ran the test stage anyway), `needs:`, a shell executor or a runner that reuses its build directory, the `amd64` asset on a native amd64 runner (the install script ran once under emulation), findings with `code.*` attributes (every path was `unknown`), the GitLab Pages recipe.
 
 ## Detecting it
 
