@@ -27,7 +27,7 @@ graders:
     criteria: |
       The reply shows that the agent looked at this repository before saying anything else.
       It names the stack as Spring Boot (or Java with Spring).
-      It points at the existing integration test ContractControllerIT.
+      It points at the existing integration test ContractControllerIT and says it uses Testcontainers with a real PostgreSQL database.
       It identifies the change as the client contracts listing, which loads the contracts of a client and then the lines of each contract.
   - type: llm
     name: recon-covers-ticket-and-instrumentation
