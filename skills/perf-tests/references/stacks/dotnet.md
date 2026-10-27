@@ -22,7 +22,7 @@ Contract and attribute list: [perf-sentinel.md](../perf-sentinel.md), section `W
 - [ ] **Outbound HTTP.** The HttpClient instrumentation sets `url.full`. It replaces the values of the query string by `Redacted` by default, so a loop that varies a query parameter reads as repeated identical calls (`redundant_http`, not an N+1). Set `OTEL_DOTNET_EXPERIMENTAL_HTTPCLIENT_DISABLE_URL_QUERY_REDACTION=true` for the test run, or vary a path segment.
 - [ ] **`http.route` and `service.name`.** The ASP.NET Core instrumentation sets `http.route`. Set `service.name` with `.ConfigureResource(r => r.AddService("<name>"))` or `OTEL_SERVICE_NAME`.
 - [ ] **Sampling.** The default is `ParentBased(AlwaysOn)`, which is 100%. Do not add a sampler. If the project sets one, switch it to always on for tests.
-- [ ] **EF Core N+1 reads as `redundant_sql`.** Bind parameters (`@__param_0`) hide the values. The finding still points at the repeated query. See `Sanitized SQL and the reclassification` in [perf-sentinel.md](../perf-sentinel.md).
+- [ ] **EF Core N+1 classification.** Bind parameters (`@__param_0`, `@order_Id`) hide the values. With the EF Core instrumentation, its scope (`OpenTelemetry.Instrumentation.EntityFrameworkCore`) is on the SQL spans, so the default `auto` mode reports `n_plus_one_sql` with `classification_method = "sanitizer_heuristic"`. With SQL spans from the driver instrumentation only (SqlClient, Npgsql), no ORM scope is present and the N+1 can read as `redundant_sql`, still on the repeated query. See `Sanitized SQL and the reclassification` in [perf-sentinel.md](../perf-sentinel.md).
 
 ## Turning export on in tests
 

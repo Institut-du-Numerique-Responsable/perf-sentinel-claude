@@ -63,7 +63,7 @@ A reclassified finding carries `classification_method = "sanitizer_heuristic"` i
 
 When a test is meant to reproduce an N+1 and the report shows `redundant_sql`, suspect these cases before suspecting the test:
 
-- **EF Core** (`@__param_0`) and **Hibernate** (`?1`) bind parameters hide the values, so the N+1 reads as `redundant_sql`. The finding is still correct about the repeated query.
+- **EF Core** (`@__param_0`) and **Hibernate** (`?1`) bind parameters hide the values. Under `auto`, the N+1 still reads as `n_plus_one_sql` when the ORM scope is on the SQL spans (the OpenTelemetry EF Core instrumentation puts it there). Without that scope, it reads as `redundant_sql`, and the finding is still correct about the repeated query.
 - **gRPC and other RPC**: the arguments live in the message body, so N distinct calls to one method read as `redundant_http`.
 - **Redacted query strings**: .NET `System.Net.Http` redacts to `?*` by default. Calls that vary a query parameter then look identical and read as `redundant_http`. A loop that varies a path segment is not affected.
 - **Strict mode on a cached repeat** stays `redundant_sql` by design.
