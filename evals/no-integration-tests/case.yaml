@@ -23,3 +23,5 @@ graders:
     criteria: |
       The reply asks the developer whether to create an integration test harness, for example with Testcontainers and a real database,
       and waits for the answer. The run does not create any file, does not edit pom.xml and does not write any test.
+      The proposal is concrete: it names the minimal harness that is idiomatic for this Spring Boot project,
+      such as a @SpringBootTest integration test with a Testcontainers PostgreSQL container, not only "an integration test setup".

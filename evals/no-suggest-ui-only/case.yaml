@@ -6,7 +6,7 @@ runs: 3
 context:
   scaffold_script: scaffold.sh
 execution:
-  prompt: I'm done with the feature that loads a client's contracts, can you review it?
+  prompt: I'm done restyling the client contracts page. On this branch I only touched the CSS file and the HTML template, no Java code. Can you review it?
   max_turns: 15
   timeout_seconds: 300
   allowed_tools: [Read, Glob, Grep, Skill, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]

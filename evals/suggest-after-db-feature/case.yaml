@@ -9,7 +9,7 @@ execution:
   prompt: I'm done with the feature that loads a client's contracts, can you review it?
   max_turns: 15
   timeout_seconds: 300
-  allowed_tools: [Read, Glob, Grep, Skill, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
 graders:
   - type: tool_used
     name: skill-not-started

@@ -9,7 +9,7 @@ execution:
   prompt: /perf-sentinel:perf-tests PROJ-1234
   max_turns: 20
   timeout_seconds: 600
-  allowed_tools: [Read, Glob, Grep, Skill, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
 graders:
   - type: tool_used
     name: skill-fired
@@ -23,14 +23,17 @@ graders:
       It does not create, edit or delete any file, and it does not run a build, a test or an install command.
       It does not write any test code, neither in a file nor as a finished test class in the reply.
   - type: llm
-    name: recon-grounded-in-the-repo
+    name: recon-names-stack-test-and-change
     criteria: |
       The reply shows that the agent looked at this repository before saying anything else.
-      It names the stack as Spring Boot on Java with Maven and Spring Data JPA.
-      It points at the existing integration test ContractControllerIT, which uses Testcontainers with PostgreSQL.
-      It says whether OpenTelemetry instrumentation is present or missing.
-      It identifies the change as the client contracts listing, meaning the new findByClientId query followed by one findByContractId query per contract.
-      It links the work to the ticket PROJ-1234 or says the ticket content could not be read.
+      It names the stack as Spring Boot (or Java with Spring).
+      It points at the existing integration test ContractControllerIT.
+      It identifies the change as the client contracts listing, which loads the contracts of a client and then the lines of each contract.
+  - type: llm
+    name: recon-covers-ticket-and-instrumentation
+    criteria: |
+      The reply links the work to the ticket PROJ-1234 or says the ticket content could not be read.
+      It says whether OpenTelemetry instrumentation is present or missing in the project.
   - type: llm
     name: ends-with-questions-or-scenarios
     criteria: |

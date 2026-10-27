@@ -20,6 +20,8 @@ graders:
       Each service section names its own stack, Spring Boot or Java for contracts-api and FastAPI or Python for billing-api.
       The scenarios match the code of each service: the client contracts listing for contracts-api and the client invoices listing for billing-api.
       The reply does not merge both services into one list and does not assume a single stack for the whole repository.
+      Each service gets its own capture run, or the reply plans to run and capture each service's tests separately.
+      A single capture run covering both services does not meet this criterion.
   - type: llm
     name: no-files-written
     focus: trace
