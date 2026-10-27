@@ -1,6 +1,6 @@
 # .NET, ASP.NET Core
 
-Status: written from official docs, not yet tried
+Status: tried end-to-end
 
 ## Recommended instrumentation
 
