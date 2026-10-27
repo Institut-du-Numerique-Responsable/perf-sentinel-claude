@@ -52,7 +52,7 @@ perf-sentinel-install:
   artifacts:
     paths: [bin/perf-sentinel]
     expire_in: 1 day
-  # same rules: as the test job
+  # copy the test job's rules: here, or this job is left out of merge request pipelines
 
 integration-tests:
   dependencies: [perf-sentinel-install]
@@ -83,7 +83,7 @@ integration-tests:
 - [ ] The commands pass `--config .perf-sentinel.toml`. With no such file `analyze` exits 75 and nothing is reported, so create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
 - [ ] SARIF and JSON from `analyze --format`, HTML from `report`. Archive all three with `artifacts:` and `when: always`, on every branch.
 - [ ] Convert the JSON to `gl-code-quality-report.json` with the `jq` filter of the snippet: one entry per finding, with the fields GitLab requires (`description`, `check_name`, `fingerprint`, `severity`, `location.path`, `location.lines.begin`). It maps `critical` to `critical`, `warning` to `major` and the rest to `info`, and uses the finding's `code_location` for the path and line, `unknown` and `1` when the spans carry no `code.*` attributes.
-- [ ] Two lines differ from Perf Sentinel's template, keep them. The template has no `check_name`, which the Code Quality format requires. It builds the fingerprint from the `trace_id`, which changes on every run, so a finding never matches the target branch's baseline. The finding's `signature` is stable across runs, and GitLab shows findings with the same fingerprint as one entry.
+- [ ] Two lines differ from Perf Sentinel's template, keep them. The template has no `check_name`, which the Code Quality format requires. It builds the fingerprint from the `trace_id`, which changes on every run, so a finding never matches the target branch's baseline. The finding's `signature` stays the same from run to run as long as the finding keeps its type, service, endpoint and query template. A finding that changes type between runs (`redundant_sql` then `n_plus_one_sql`) gets a new signature. GitLab shows findings with the same fingerprint as one entry.
 - [ ] The analyze job needs `jq`. Install it in the job's image, with `|| exit 75` on the install line, as in the snippet.
 - [ ] A failing `jq` is a bug in the filter, so it must not exit `75`.
 - [ ] The ack file `.perf-sentinel-acknowledgments.toml` is read from the working directory. Run from `$CI_PROJECT_DIR`, or pass `--acknowledgments`. Entry template: [perf-sentinel.md](../perf-sentinel.md), section `Acknowledgment entry`.
@@ -139,7 +139,7 @@ perf-sentinel:
 The gate is the team's choice. Recommend it on merge requests only, show the change, never turn it on yourself.
 
 - [ ] Add the gate as the last line of the job `script:`, after the `jq` conversion: `- ${CI_PROJECT_DIR}/bin/perf-sentinel analyze --ci --input "${PERF_SENTINEL_TRACES}" --config .perf-sentinel.toml --format json > /dev/null`. It runs only after every report-only command succeeded, and keeps its own exit code: `1` for a breach. Perf Sentinel's template writes the binary path in double quotes inside a `- |` block. On a single line, a leading double quote breaks the YAML.
-- [ ] The gate runs on every pipeline. Outside merge requests a breach shows as a job allowed to fail, and the pipeline passes with a warning.
+- [ ] Once added, the gate line runs on every pipeline. Outside merge requests a breach shows as a job allowed to fail, and the pipeline passes with a warning.
 - [ ] `allow_failure: exit_codes: [75]`, already in the job above, lets a tooling failure through without blocking the merge request. It stays on the job: `rules:allow_failure` accepts only a boolean, and the CI lint rejects the mapping form there.
 - [ ] `rules:` runs the job on `merge_request_event`, on the default branch, and on every other pipeline through a final catch-all rule, so other branches keep the report. The default-branch and catch-all rules carry `allow_failure: true`, so a breach there never turns the pipeline red. Each rule sets `when: always` to keep the report-only behavior of the job, because `rules:` overrides the job-level `when:`.
 - [ ] Merge request pipelines must run the install and test jobs too, otherwise `dependencies:` points at a job that is not in the pipeline and the config is rejected. A job with no `rules:` and no `only:` is left out of merge request pipelines by default. Check the test job's own `rules:`, and give the install job the same ones.
