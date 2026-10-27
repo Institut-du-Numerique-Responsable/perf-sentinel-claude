@@ -1,6 +1,6 @@
 # Fix safety checklist
 
-A fix that clears a finding but breaks another caller, changes the business result or slows another path is a failure. Propose one targeted fix at a time and walk these three lists for each one. The Perf Sentinel suggestion is a lead, not a verdict: it can be wrong.
+A fix that clears a finding but breaks another caller, changes the business result or slows another path is a failure. Propose one targeted fix at a time and walk these lists for each one. The Perf Sentinel suggestion is a lead, not a verdict: it can be wrong.
 
 ## Before
 
@@ -11,6 +11,10 @@ A fix that clears a finding but breaks another caller, changes the business resu
   - **Cache returns stale data.** A cache added to remove a redundant call must have a clear invalidation on every write path. List the writes to the same data and check each one evicts or updates the entry.
   - **Transaction boundary or lazy loading breaks another caller.** Moving a query, adding a fetch, or changing the transaction scope or the ORM session scope can leave another caller reading a lazy relation outside its transaction, or holding a transaction longer. Check each caller found above for access to relations after the call returns.
   - **Data loaded for nothing on another path.** An eager fetch added for the tested endpoint also runs for every other caller of the same query. Check whether those callers use the new data. If not, scope the fetch to this path (dedicated query, projection, fetch plan).
+
+## Approval
+
+- [ ] Present the diff of the fix and wait for a yes before editing.
 
 ## After
 

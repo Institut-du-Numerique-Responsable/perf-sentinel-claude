@@ -6,7 +6,7 @@ compatibility: Needs a repository checkout, Docker for database-backed tests, an
 metadata:
   author: Robin Trassard
   repository: https://github.com/robintra/perf-sentinel-claude-plugin
-allowed-tools: Bash(git diff *) Bash(git log *) Bash(git merge-base *) Bash(perf-sentinel --version) Bash(perf-sentinel analyze *) Bash(perf-sentinel inspect *)
+allowed-tools: Bash(git diff *) Bash(git log *) Bash(git merge-base *) Bash(perf-sentinel --version) Bash(perf-sentinel analyze *)
 ---
 
 # Performance integration tests under Perf Sentinel
@@ -119,10 +119,10 @@ Ask before running anything.
 - [ ] If the binary is missing, propose installing it from the official release with checksum verification.
 - [ ] Run only the new tests: `perf-sentinel capture --output <file> -- <filtered test command>`. Write the capture file outside the build directory, since a `clean` step deletes it.
 - [ ] Then `perf-sentinel analyze --input <file>`, with `--config .perf-sentinel.toml` when the project has one.
-- [ ] Check the traces before reading the findings:
-  - the file is not empty
-  - it holds SQL or HTTP spans (`perf-sentinel inspect --input <file>` shows what was extracted)
-  - it holds the queries or calls that match the code in the diff.
+- [ ] Check the traces before reading the findings. Run `perf-sentinel analyze --input <file> --format json` and read:
+  - `analysis.events_processed` and `analysis.traces_analyzed`: both above zero, otherwise nothing usable was captured
+  - the ingest `usable_span_ratio` and the `filtered_missing_db_statement` / `filtered_missing_http_url` counters, when present: spans dropped there lack the SQL text or the URL, so the instrumentation is incomplete
+  - a search of the capture file for the diff's table names or endpoint: the queries or calls from the diff must be there.
 
   If the diff's queries are absent, the test is wrong even with zero findings. Say so and fix the test.
 - [ ] If a local run is impossible, say why in one sentence and move on. The CI will do the check.
@@ -138,11 +138,11 @@ Only for a bugfix. Ask before creating the worktree.
 
 ## Fixes
 
-Only when there are findings. Load `references/fix-safety.md` before proposing any fix.
+Only when there are findings. Show the proposed fix and ask before applying it. Load `references/fix-safety.md` before proposing any fix.
 
 - [ ] Start from the finding and the Perf Sentinel suggestion, but do not trust the suggestion blindly.
 - [ ] If a Perf Sentinel Hub MCP tool is available, read the finding history for the endpoint. Without it, the step works the same.
-- [ ] One targeted fix at a time, checked against the Before, After and Decision lists of `references/fix-safety.md`.
+- [ ] One targeted fix at a time, checked against the Before, Approval, After and Decision lists of `references/fix-safety.md`.
 - [ ] The developer decides whether to keep each fix.
 - [ ] When the developer keeps a finding unfixed, propose the acknowledgment entry ready to paste, from the template in `references/perf-sentinel.md`: signature, reason, reviewer to fill in, and always an `expires_at` date. An entry without a date is permanent.
 - [ ] Report the `unmatched_acknowledgment` entries the local run shows. They can be deleted.
