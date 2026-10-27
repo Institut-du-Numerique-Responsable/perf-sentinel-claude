@@ -67,7 +67,7 @@ When a test is meant to reproduce an N+1 and the report shows `redundant_sql`, s
 - **gRPC and other RPC**: the arguments live in the message body, so N distinct calls to one method read as `redundant_http`.
 - **Redacted query strings**: .NET `System.Net.Http` redacts to `?*` by default. Calls that vary a query parameter then look identical and read as `redundant_http`. A loop that varies a path segment is not affected.
 - **Strict mode on a cached repeat** stays `redundant_sql` by design.
-- **In a test**, count `redundant_sql` on the looped template as the N+1 for EF Core, Hibernate bind parameters and bare drivers. Use at least 15 iterations on a bare driver with no ORM scope, so that `strict` and `auto` both reclassify. Under `auto`, a bare driver has no ORM scope signal and fast local queries have a low duration spread, so 5 to 14 iterations can show only `redundant_sql`. That is not a failed test.
+- **In a test**, count `redundant_sql` on the looped template as the N+1 for EF Core, Hibernate bind parameters and bare drivers. Under the default `auto`, a bare driver with no ORM scope and uniform local timings stays `redundant_sql` at any count, because `auto` reads only the ORM scope and the duration spread, never the count. So that finding is the expected signal for the looped template, not a failed test. A count of 15 or more iterations (3 times the minimum) reclassifies it as `n_plus_one_sql` only when the project sets `sanitizer_aware_classification = "strict"`. Use at least 15 iterations on a bare driver so that `strict` reclassifies it too.
 
 Links:
 
