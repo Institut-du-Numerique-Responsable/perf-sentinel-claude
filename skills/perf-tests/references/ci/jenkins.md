@@ -2,7 +2,7 @@
 
 Status: tried end-to-end
 
-Tried: a Pipeline job on Jenkins LTS in Docker, native arm64 Debian agent, Maven wrapper with Failsafe and Testcontainers, a branch build, failing tests, the gate with and without an N+1 on a simulated pull request build, a missing config file and a failed download. Not tried: a Multibranch Pipeline with a real SCM, a Windows or amd64 agent, Warnings NG `qualityGates`, the HTML Publisher recipe.
+Tried: a Pipeline job on Jenkins LTS in Docker, native arm64 Debian agent, Maven wrapper with Failsafe and Testcontainers, a branch build, failing tests, the gate with and without an N+1 on a simulated pull request build, a missing config file and a failed download. Not tried: a real pull request (`CHANGE_ID` came from a build parameter on a plain Pipeline job, not a Multibranch Pipeline with an SCM), a separate agent (the builds ran with `agent any` on the controller's built-in node), the `amd64` asset on a native amd64 agent (it ran once, under emulation), a checksum mismatch (only a failed download was run), a Windows agent, Warnings NG `qualityGates`, the HTML Publisher recipe.
 
 ## Detecting it
 
@@ -14,7 +14,7 @@ Tried: a Pipeline job on Jenkins LTS in Docker, native arm64 Debian agent, Maven
 ## Wrapping the test step
 
 - [ ] The agent needs the `perf-sentinel` binary before the tests. Install it from the official release with the SHA256 check, as in the `Install` section of [perf-sentinel.md](../perf-sentinel.md). Use the current release tag in an `environment` variable such as `PERF_SENTINEL_VERSION`, never `latest`, and write no number from this file.
-- [ ] The asset must match the agent architecture: `perf-sentinel-linux-amd64` when `uname -m` prints `x86_64`, `perf-sentinel-linux-arm64` when it prints `aarch64`. The release URL takes the tag with its `v`: `releases/download/v${PERF_SENTINEL_VERSION}`.
+- [ ] The asset must match the agent architecture: `perf-sentinel-linux-amd64` when `uname -m` prints `x86_64`, `perf-sentinel-linux-arm64` when it prints `aarch64`. The snippet picks it from `uname -m` inside the download step, so an unknown architecture is a tooling failure, never a red build. The release URL takes the tag with its `v`: `releases/download/v${PERF_SENTINEL_VERSION}`.
 - [ ] Rename the asset to `perf-sentinel`, make it executable, and call it as `./perf-sentinel` in every stage, `capture` included, as Perf Sentinel's template does. Use one form throughout, never a bare `perf-sentinel` next to `./perf-sentinel`.
 - [ ] `sh` starts in the workspace root. When the test command runs inside a `dir(...)` block (a Maven wrapper in a subfolder, for example), a relative path resolves against that folder: write `"$WORKSPACE/perf-sentinel"` and `"$WORKSPACE/$PERF_SENTINEL_TRACES"` there.
 - [ ] Jenkins reuses the workspace between builds of a job, and a checkout does not delete untracked files. Delete the previous binary, capture and reports first, as in the install snippet. Otherwise, when a step fails, the previous build's reports are archived as this build's, and on a pull request build the `fileExists` guard lets the gate run and turn a tooling failure red.
@@ -24,28 +24,35 @@ Tried: a Pipeline job on Jenkins LTS in Docker, native arm64 Debian agent, Maven
 // pipeline level
 environment {
     PERF_SENTINEL_VERSION = '<current release, without the v>'
-    PERF_SENTINEL_ASSET   = 'perf-sentinel-linux-amd64'   // must match the agent architecture
     PERF_SENTINEL_TRACES  = 'perf-sentinel-out/traces.ndjson'
 }
 
 stage('Install Perf Sentinel') {
     steps {
         // a reused workspace keeps the previous build's files
-        sh 'rm -f perf-sentinel "$PERF_SENTINEL_ASSET" SHA256SUMS.txt "$PERF_SENTINEL_TRACES" results.sarif report.json report.html'
+        sh 'rm -f perf-sentinel perf-sentinel-linux-* perf-sentinel.asset SHA256SUMS.txt "$PERF_SENTINEL_TRACES" results.sarif report.json report.html'
         catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
             sh '''
                 set -eu
+                case "$(uname -m)" in
+                    x86_64) ASSET=perf-sentinel-linux-amd64 ;;
+                    aarch64|arm64) ASSET=perf-sentinel-linux-arm64 ;;
+                    *) echo "unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+                esac
                 BASE_URL="https://github.com/Institut-du-Numerique-Responsable/perf-sentinel/releases/download/v${PERF_SENTINEL_VERSION}"
-                curl -sSLf -o "$PERF_SENTINEL_ASSET" "$BASE_URL/$PERF_SENTINEL_ASSET"
+                curl -sSLf -o "$ASSET" "$BASE_URL/$ASSET"
                 curl -sSLf -o SHA256SUMS.txt "$BASE_URL/SHA256SUMS.txt"
+                echo "$ASSET" > perf-sentinel.asset
             '''
         }
+        // outside catchError: a checksum mismatch fails the build
         script {
-            if (fileExists(env.PERF_SENTINEL_ASSET) && fileExists('SHA256SUMS.txt')) {
+            if (fileExists('perf-sentinel.asset') && fileExists('SHA256SUMS.txt')) {
                 sh '''
                     set -eu
-                    grep "$PERF_SENTINEL_ASSET" SHA256SUMS.txt | sha256sum -c -
-                    mv -f "$PERF_SENTINEL_ASSET" perf-sentinel
+                    ASSET=$(cat perf-sentinel.asset)
+                    grep "$ASSET" SHA256SUMS.txt | sha256sum -c -
+                    mv -f "$ASSET" perf-sentinel
                     chmod +x perf-sentinel
                     ./perf-sentinel --version
                 '''
@@ -74,7 +81,6 @@ stage('Integration tests') {
         catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
             // no binary after a failed download: run the tests anyway, the build is already unstable
             sh '''
-                set -eu
                 if [ -x ./perf-sentinel ]; then
                     ./perf-sentinel capture --output "$PERF_SENTINEL_TRACES" -- <existing test command>
                 else
@@ -92,7 +98,7 @@ stage('Integration tests') {
 
 - [ ] A report-only stage after the tests, with no `--ci`. Wrap it in `catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE')` so a tooling problem marks the build unstable and never red.
 - [ ] The commands pass `--config .perf-sentinel.toml`. With no such file `analyze` exits 75 and nothing is reported, so create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
-- [ ] The `sh` step runs `/bin/sh`, which is dash on Debian and Ubuntu. Dash rejects `set -o pipefail` with `Illegal option -o pipefail` on Debian 12 and Ubuntu 24.04, and accepts it on Debian 13. The snippets need no `pipefail`, so they use `set -eu`: the analyze block has no pipe, and in the install block `sha256sum -c -` fails on its own when `grep` finds no line. If you add a pipe whose failure matters, start the script with `#!/bin/bash` and use `set -euo pipefail`.
+- [ ] The `sh` step runs `/bin/sh`, which is dash on Debian and Ubuntu. Dash rejects `set -o pipefail` with `Illegal option -o pipefail` on Debian 12 and Ubuntu 24.04, and accepts it on Debian 13. The install and analyze snippets need no `pipefail`, so they use `set -eu`: the analyze block has no pipe, and in the install block `sha256sum -c -` fails on its own when `grep` finds no line. The test step sets nothing: Jenkins already runs `sh` with `-xe`, and `-u` could break the team's command on an unset variable. If you add a pipe whose failure matters, start the script with `#!/bin/bash` and use `set -euo pipefail`.
 - [ ] SARIF and JSON from `analyze --format`, HTML from `report`. Write each under a `.tmp` name and rename on success, so a crash leaves no empty file that `fileExists` mistakes for a report.
 - [ ] In `post { always { ... } }`, `archiveArtifacts` the files with `allowEmptyArchive: true`.
 - [ ] The ack file `.perf-sentinel-acknowledgments.toml` is read from the working directory. Run from the workspace root, or pass `--acknowledgments`. Entry template: [perf-sentinel.md](../perf-sentinel.md), section `Acknowledgment entry`.
