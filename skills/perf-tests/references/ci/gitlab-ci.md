@@ -25,7 +25,7 @@ integration-tests:
     OTEL_TRACES_SAMPLER: "always_on"
   script:
     # install lines first, as above
-    - "${CI_PROJECT_DIR}/bin/perf-sentinel" capture --output traces.ndjson -- <existing test command>
+    - ${CI_PROJECT_DIR}/bin/perf-sentinel capture --output traces.ndjson -- <existing test command>
   artifacts:
     paths: [traces.ndjson]
     expire_in: 1 day
@@ -48,9 +48,9 @@ perf-sentinel:
   dependencies: [integration-tests]
   script:
     # install lines first, as above
-    - "${CI_PROJECT_DIR}/bin/perf-sentinel" analyze --input traces.ndjson --config .perf-sentinel.toml --format sarif > findings.sarif || exit 75
-    - "${CI_PROJECT_DIR}/bin/perf-sentinel" analyze --input traces.ndjson --config .perf-sentinel.toml --format json > perf-sentinel-report.json || exit 75
-    - "${CI_PROJECT_DIR}/bin/perf-sentinel" report --input traces.ndjson --config .perf-sentinel.toml --output report.html || exit 75
+    - ${CI_PROJECT_DIR}/bin/perf-sentinel analyze --input traces.ndjson --config .perf-sentinel.toml --format sarif > findings.sarif || exit 75
+    - ${CI_PROJECT_DIR}/bin/perf-sentinel analyze --input traces.ndjson --config .perf-sentinel.toml --format json > perf-sentinel-report.json || exit 75
+    - ${CI_PROJECT_DIR}/bin/perf-sentinel report --input traces.ndjson --config .perf-sentinel.toml --output report.html || exit 75
     # jq conversion to gl-code-quality-report.json goes here
   allow_failure:
     exit_codes: [75]
