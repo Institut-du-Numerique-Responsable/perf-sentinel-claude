@@ -2,7 +2,7 @@
 
 Status: tried end-to-end
 
-Tried: one job on a Spring Boot Maven project with Testcontainers, run locally with `act` on a native arm64 Ubuntu 24.04 runner image: a push, failing tests on a pull request, the gate with and without an N+1 on a pull request, a missing config file, a failed download and a checksum mismatch, plus `actionlint`. Not tried: GitHub itself (`act` simulated the `push` and `pull_request` events, and the SARIF upload and the sticky comment ran with no valid token, so neither reached a real Code Scanning or pull request), `actions/upload-artifact` v7 (the `act` artifact server rejects it, v4 ran in its place), the `amd64` asset, a self-hosted runner and its reused workspace, a pull request from a fork, branch protection.
+Tried: one job on a Spring Boot Maven project with Testcontainers, run locally with `act` on a native arm64 Ubuntu 24.04 runner image: a push, failing tests on a pull request, the gate with and without an N+1 on a pull request, a missing config file, a failed download and a checksum mismatch, plus `actionlint`. Not tried: GitHub itself (`act` simulated the `push` and `pull_request` events, and the SARIF upload and the sticky comment ran with no valid token, so neither reached a real Code Scanning or pull request), `actions/upload-artifact` v7 (the `act` artifact server rejects it, v4 ran in its place), the `amd64` asset, a self-hosted runner and its reused workspace, a pull request from a fork, a cancelled run, branch protection.
 
 ## Detecting it
 
@@ -44,7 +44,7 @@ Tried: one job on a Spring Boot Maven project with Testcontainers, run locally w
     ASSET: ${{ steps.download.outputs.asset }}
   run: |
     set -euo pipefail
-    grep "$ASSET" SHA256SUMS.txt | sha256sum -c -
+    grep "  ${ASSET}$" SHA256SUMS.txt | sha256sum -c -
     mkdir -p "${GITHUB_WORKSPACE}/bin"
     install -m 0755 "$ASSET" "${GITHUB_WORKSPACE}/bin/perf-sentinel"
     echo "${GITHUB_WORKSPACE}/bin" >> "${GITHUB_PATH}"
@@ -66,8 +66,8 @@ Tried: one job on a Spring Boot Maven project with Testcontainers, run locally w
 
 ## Analyze and archive
 
-- [ ] A report-only step after the tests, with no `--ci`, so a gate breach never hides the report. Run it on every branch and keep it even when the tests failed (`if: always()`).
-- [ ] Every step after the test step that should run when the tests fail starts its `if:` with `always() &&`. An `if:` with no status function gets an implicit `success()`, so a failing test silently skips it. The PR comment steps need it, the gate does not, since the job is already red.
+- [ ] A report-only step after the tests, with no `--ci`, so a gate breach never hides the report. Run it on every branch and keep it even when the tests failed (`if: ${{ !cancelled() }}`).
+- [ ] Every step after the test step that should run when the tests fail starts its `if:` with `!cancelled() &&`. An `if:` with no status function gets an implicit `success()`, so a failing test silently skips it. Never use `always()`: it stays true on a cancelled run (manual cancel, `concurrency` with `cancel-in-progress`, `timeout-minutes`), so `analyze` would read a truncated capture and a superseded run could post a stale comment. Wrap the whole condition in `${{ }}`, as in the snippets: a bare `!` at the start of a YAML value is a tag, not a negation. The analyze, artifact, tooling-failure, SARIF and PR comment steps need it, the gate does not, since the job is already red.
 - [ ] Give it `id: analyze` and `continue-on-error: true`, as Perf Sentinel's template does. An empty capture makes `analyze` exit `75`, and without the tolerance that would turn every branch red with no gate enabled. Only the optional gate may fail the build. Later steps key off `steps.analyze.outcome`, and a closing step warns when it is not `success`.
 - [ ] The commands pass `--config .perf-sentinel.toml`. With no such file `analyze` exits 75, nothing is reported and the gate is skipped, so a run passes while seeing nothing. Create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
 - [ ] Write SARIF and JSON, then HTML from `report`. `analyze` gives only text, SARIF and JSON.
@@ -78,7 +78,7 @@ Tried: one job on a Spring Boot Maven project with Testcontainers, run locally w
 ```yaml
 - name: Perf Sentinel analyze
   id: analyze
-  if: always()
+  if: ${{ !cancelled() }}
   continue-on-error: true
   run: |
     set -euo pipefail
@@ -89,7 +89,7 @@ Tried: one job on a Spring Boot Maven project with Testcontainers, run locally w
     mv -f report.json.tmp report.json
     perf-sentinel report --input "$T" --config .perf-sentinel.toml --output report.html
 - uses: actions/upload-artifact@<full commit SHA> # <tag>
-  if: always()
+  if: ${{ !cancelled() }}
   with:
     name: perf-sentinel
     path: |
@@ -97,7 +97,7 @@ Tried: one job on a Spring Boot Maven project with Testcontainers, run locally w
       report.json
       report.html
 - name: Report tooling failure
-  if: always() && steps.analyze.outcome != 'success'
+  if: ${{ !cancelled() && steps.analyze.outcome != 'success' }}
   run: echo "::warning::Perf Sentinel did not produce a report, the gate was skipped"
 ```
 
@@ -105,11 +105,13 @@ Tried: one job on a Spring Boot Maven project with Testcontainers, run locally w
 
 Perf Sentinel's own template does two things, and the skill proposes the same:
 
-- [ ] **SARIF to Code Scanning** with `github/codeql-action/upload-sarif` (`category: perf-sentinel`). Findings show in the Security tab and as annotations on the PR diff when `code_location` is present. Needs `security-events: write`. On a private repository Code Scanning may need GitHub Advanced Security, check the plan before proposing it.
-- [ ] Give the upload step `if: always() && steps.analyze.outcome == 'success'` and `continue-on-error: true`. The action validates the file against the SARIF schema before it uploads, and it fails on a schema error, on a repository without Code Scanning and on a token that cannot write security events. None of these is a performance problem, and the report stays in the artifacts. Read the step log the first time a run has findings: a SARIF file with no results can pass the schema check while one with results fails it.
+- [ ] **SARIF to Code Scanning** with `github/codeql-action/upload-sarif` (`category: perf-sentinel`). When the upload goes through, findings show in the Security tab and as annotations on the PR diff when `code_location` is present. Needs `security-events: write`, plus `actions: read` on a private repository. On a private repository Code Scanning may need GitHub Advanced Security, check the plan before proposing it.
+- [ ] Perf Sentinel's current SARIF may be rejected by the upload's schema check when it contains findings. That is a limitation of the engine's output, not a mistake in the workflow. The `findings.sarif` archived as an artifact is the reliable copy. Tell the team before promising results in the Security tab.
+- [ ] Give the SARIF upload step `if: ${{ !cancelled() && steps.analyze.outcome == 'success' }}` and `continue-on-error: true`. It also fails on a repository without Code Scanning and on a token that cannot write security events. None of these is a performance problem.
 - [ ] **Sticky PR comment** built from `report.json` with `jq` (finding counts by severity, `io_waste_ratio`, `quality_gate.passed`) and posted with `marocchino/sticky-pull-request-comment`. Needs `pull-requests: write`. It is a third-party action, so name it and pin it before asking.
-- [ ] Say both permissions out loud and ask before editing the workflow's `permissions:` block. Keep `contents: read`.
-- [ ] A pull request from a fork gets a read-only token, so the comment step fails there. The template marks it `continue-on-error: true`. The fork limitation is described under the CI recipes link below.
+- [ ] Give the comment steps `if: ${{ !cancelled() && github.event_name == 'pull_request' && ... }}`, and give the post step `continue-on-error: true`. A pull request from a fork gets a read-only token, so the post fails there. The fork limitation is described under the CI recipes link below.
+- [ ] Say the permissions out loud (`security-events: write`, `actions: read` on a private repository, `pull-requests: write`) and ask before editing the workflow's `permissions:` block. Keep `contents: read`.
+- [ ] To run the workflow locally (`act` or a similar runner), pass a dummy `GITHUB_TOKEN` and no `gh` credentials. Otherwise the comment and SARIF steps act on the real repository: `act` picks up the `gh` token by itself and takes the repository from the `origin` remote.
 - [ ] No other integration. The HTML dashboard through GitHub Pages is an opt-in recipe in the Perf Sentinel docs: mention it, do not set it up.
 
 ## Optional gate
