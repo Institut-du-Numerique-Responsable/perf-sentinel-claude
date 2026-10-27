@@ -45,7 +45,7 @@ Defaults, evaluated per trace. Each threshold is a key of `[detection]` in `.per
 
 What this means when sizing a test:
 
-- The N+1 floor is 5 repeats and the critical tier is 10. A test with 3 children never fires, so the data volume must come from the developer's production numbers.
+- The N+1 floor is 5 distinct values and the critical tier is 10. A test with 3 children never fires. The goal is the production shape, so the data volume comes from the developer's production numbers and 5 is only the floor.
 - The 500 ms window is measured on the trace. A fast local database stays well inside it. A loop slowed by a throttled test environment can fall outside it and be missed.
 - N+1 counts distinct parameter values. Same-parameter repeats are `redundant_*`, not N+1.
 - Session statements a pooled driver emits at every connection checkout (`COMMIT`, `SET`) are skipped by the repetition detectors.
@@ -67,6 +67,7 @@ When a test is meant to reproduce an N+1 and the report shows `redundant_sql`, s
 - **gRPC and other RPC**: the arguments live in the message body, so N distinct calls to one method read as `redundant_http`.
 - **Redacted query strings**: .NET `System.Net.Http` redacts to `?*` by default. Calls that vary a query parameter then look identical and read as `redundant_http`. A loop that varies a path segment is not affected.
 - **Strict mode on a cached repeat** stays `redundant_sql` by design.
+- **In a test**, count `redundant_sql` on the looped template as the N+1 for EF Core, Hibernate bind parameters and bare drivers. Use at least 15 iterations on a bare driver with no ORM scope, so that `strict` and `auto` both reclassify. Under `auto`, a bare driver has no ORM scope signal and fast local queries have a low duration spread, so 5 to 14 iterations can show only `redundant_sql`. That is not a failed test.
 
 Links:
 
@@ -198,7 +199,7 @@ Links:
 
 | Code | Meaning |
 |------|---------|
-| `0` | Capture completed |
+| `0` | Capture completed. This holds even when nothing was received, so the trace check of `analyze` still has to run |
 | the command's own code | The wrapped command failed. A command killed by a signal gives `128 + signal` |
 | `1` | The capture itself failed (port taken, unwritable file), before the command started |
 | `2` | The file is incomplete: the size cap was hit or requests could not be queued fast enough. Any verdict from it understates the run |
