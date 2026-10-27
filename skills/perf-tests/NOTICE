@@ -1,7 +1,7 @@
 Perf Sentinel plugin for Claude Code
 Copyright (c) 2026 Institut du Numérique Responsable
 Principal author: Robin Trassard
-Source: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude-plugin
+Source: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude
 
 Code: Apache License 2.0. Skill, references and documentation: CC BY 4.0.
 See LICENSE for the content boundaries and LICENSES/ for the full terms.
@@ -9,7 +9,7 @@ See LICENSE for the content boundaries and LICENSES/ for the full terms.
 Suggested attribution for the skill and its references:
 "Perf Sentinel plugin for Claude Code, Institut du Numérique Responsable,
 Robin Trassard and contributors, CC BY 4.0,
-https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude-plugin".
+https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude".
 Include a license link (https://creativecommons.org/licenses/by/4.0/)
 and indicate your modifications when sharing adapted material.
 

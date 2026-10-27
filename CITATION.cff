@@ -15,7 +15,7 @@ contact:
     family-names: "Trassard"
     alias: "robintra"
     affiliation: "Institut du Numérique Responsable"
-repository-code: "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude-plugin"
+repository-code: "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude"
 url: "https://perf-sentinel.dev"
 license:
   - Apache-2.0

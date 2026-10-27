@@ -8,6 +8,6 @@
   },
   "license": "Apache-2.0 AND CC-BY-4.0",
   "homepage": "https://perf-sentinel.dev",
-  "repository": "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude-plugin",
+  "repository": "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude",
   "keywords": ["performance", "testing", "n+1", "opentelemetry", "greenops"]
 }

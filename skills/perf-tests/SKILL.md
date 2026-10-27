@@ -5,7 +5,7 @@ license: CC-BY-4.0 (see LICENSE)
 compatibility: Needs a repository checkout, Docker for database-backed tests, and the perf-sentinel binary or permission to install it.
 metadata:
   author: Robin Trassard
-  repository: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude-plugin
+  repository: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude
 allowed-tools: Bash(git diff *) Bash(git log *) Bash(git merge-base *) Bash(perf-sentinel --version) Bash(perf-sentinel analyze *)
 ---
 
