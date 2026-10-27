@@ -19,6 +19,15 @@ It works from the diff, picks the instrumentation for your stack and wires the c
 
 The optional precision narrows what to test, for example a module or an endpoint.
 
+## Coverage
+
+Stacks: .NET, Python, Go, Node.js, PHP, Ruby, Rust and Java (Spring Boot, Quarkus, Micronaut).
+CI systems: GitHub Actions, GitLab CI, Jenkins, Azure DevOps and CircleCI, plus a generic fallback for any other.
+
+The .NET and Python references were tried end-to-end. The others are written from the official documentation and have not been tried yet, so each says so in its `Status:` line.
+
+The skill asks before every change and runs nothing in CI by itself. It only writes the CI step, and you decide when it runs.
+
 More about the tool at https://perf-sentinel.dev.
 
 ## License
