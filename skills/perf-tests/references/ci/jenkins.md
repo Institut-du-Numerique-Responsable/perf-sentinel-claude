@@ -1,6 +1,8 @@
 # Jenkins
 
-Status: written from official docs, not yet tried
+Status: tried end-to-end
+
+Tried: a Pipeline job on Jenkins LTS in Docker, native arm64 Debian agent, Maven wrapper with Failsafe and Testcontainers, a branch build, failing tests, the gate with and without an N+1 on a simulated pull request build, a missing config file and a failed download. Not tried: a Multibranch Pipeline with a real SCM, a Windows or amd64 agent, Warnings NG `qualityGates`, the HTML Publisher recipe.
 
 ## Detecting it
 
