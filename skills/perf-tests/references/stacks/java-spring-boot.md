@@ -63,6 +63,7 @@ Agent (Boot 3, or a project that already uses it):
 - **Injected builders only.** A client built with `RestClient.builder()` is invisible, and so is every call it makes.
 - **`jdbc.includes` left at its default** adds connection and fetch spans on top of the statements. Set it to `QUERY`.
 - **Parameters read as `redundant_sql`.** Datasource Micrometer sanitizes literals and Hibernate binds `?`, so a looped query can read as `redundant_sql`. See `Sanitized SQL and the reclassification` in [perf-sentinel.md](../perf-sentinel.md).
+- **A lazy-loading N+1 has no ORM scope, even with the agent.** The agent's SQL spans carry the `io.opentelemetry.jdbc` scope. Perf Sentinel also reads the scopes of their parents, so a repository method called in a loop reads as `n_plus_one_sql` (its `spring-data` span is the parent). A lazy collection loaded in a loop has no such parent: each `SELECT` sits directly under the server span, and `auto` falls back on the timing spread alone. Measured on one run: 15 loads read as a critical `n_plus_one_sql` (spread 0.56, just over 0.5), 150 loads as a `redundant_sql` warning. Count either as the N+1, and expect the 15-load case to flip between runs. For a stable classification in CI, propose `sanitizer_aware_classification = "strict"`, which reclassifies from 15 identical queries.
 
 ## Running the tests under capture
 
