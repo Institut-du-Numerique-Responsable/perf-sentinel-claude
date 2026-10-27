@@ -1,6 +1,8 @@
 # GitHub Actions
 
-Status: written from official docs, not yet tried
+Status: tried end-to-end
+
+Tried: one job on a Spring Boot Maven project with Testcontainers, run locally with `act` on a native arm64 Ubuntu 24.04 runner image: a push, failing tests on a pull request, the gate with and without an N+1 on a pull request, a missing config file, a failed download and a checksum mismatch, plus `actionlint`. Not tried: GitHub itself (`act` simulated the `push` and `pull_request` events, and the SARIF upload and the sticky comment ran with no valid token, so neither reached a real Code Scanning or pull request), `actions/upload-artifact` v7 (the `act` artifact server rejects it, v4 ran in its place), the `amd64` asset, a self-hosted runner and its reused workspace, a pull request from a fork, branch protection.
 
 ## Detecting it
 
