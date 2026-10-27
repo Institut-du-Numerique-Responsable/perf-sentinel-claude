@@ -1,6 +1,8 @@
 # Java, Spring Boot
 
-Status: written from official docs, not yet tried
+Status: tried end-to-end
+
+Tried: Spring Boot 4 with the Java agent the project already ran in production, added to Failsafe, `@SpringBootTest` with a Testcontainers PostgreSQL, Hibernate lazy loading and a Spring Data repository called in a loop. Not tried: the Spring starter, Datasource Micrometer, Spring Boot 3, Gradle, outbound HTTP and messaging findings.
 
 ## Recommended instrumentation
 
