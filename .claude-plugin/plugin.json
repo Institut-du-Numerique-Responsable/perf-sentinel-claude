@@ -1,0 +1,13 @@
+{
+  "name": "perf-sentinel",
+  "displayName": "Perf Sentinel",
+  "description": "Writes performance integration tests that surface N+1, redundant and slow I/O before production.",
+  "author": {
+    "name": "Robin Trassard",
+    "url": "https://github.com/robintra"
+  },
+  "license": "Apache-2.0 AND CC-BY-4.0",
+  "homepage": "https://perf-sentinel.dev",
+  "repository": "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude",
+  "keywords": ["performance", "testing", "n+1", "opentelemetry", "greenops"]
+}

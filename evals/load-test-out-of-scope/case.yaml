@@ -1,0 +1,31 @@
+schema_version: "1.0"
+name: load-test-out-of-scope
+description: A load test request is out of scope because the skill judges one trace at a time.
+tags: [trigger, negative]
+runs: 3
+execution:
+  prompt: write a k6 load test for /orders with 500 users
+  max_turns: 8
+  timeout_seconds: 180
+  allowed_tools: [Read, Glob, Grep, Skill, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
+graders:
+  - type: tool_used
+    name: skill-not-started
+    tool: Skill
+    input_match: perf-tests
+    min: 0
+    max: 0
+    arm: both
+  - type: llm
+    name: does-not-start-the-skill-flow
+    focus: trace
+    criteria: |
+      The agent answers the k6 request directly, with a k6 script or with k6 specific questions such as the stages, the thresholds or the base URL.
+      It does not run the recon of the skill (stack, CI, OpenTelemetry), does not ask business questions about data volumes
+      for trace based tests and does not present a list of scenarios to validate for Perf Sentinel.
+  - type: llm
+    name: states-the-limit-if-the-skill-comes-up
+    criteria: |
+      If the reply mentions Perf Sentinel or the perf-tests skill, it says that this tool judges one trace at a time,
+      so it is not a load testing tool, and it points to a load testing tool such as k6 for the 500 users part.
+      If the reply does not mention Perf Sentinel or the skill at all, this criterion is met.

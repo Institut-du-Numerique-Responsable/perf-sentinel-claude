@@ -1,0 +1,30 @@
+schema_version: "1.0"
+name: no-suggest-ui-only
+description: A diff that only touches CSS and templates does not trigger the suggestion.
+tags: [trigger, negative]
+runs: 3
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: I'm done restyling the client contracts page. On this branch I only touched the CSS file and the HTML template, no Java code. Can you review it?
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Read, Glob, Grep, Skill, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
+graders:
+  - type: tool_used
+    name: skill-not-started
+    tool: Skill
+    input_match: perf-tests
+    min: 0
+    max: 0
+    arm: both
+  - type: regex
+    name: no-command-in-reply
+    pattern: perf-sentinel:perf-tests
+    match: not_contains
+  - type: llm
+    name: reviews-without-proposing-perf-tests
+    criteria: |
+      The reply is a code review. The change under review only touches a CSS file and an HTML template.
+      It does not propose performance tests, integration tests under Perf Sentinel, N+1 detection or any similar offer.
+      It does not mention the perf-tests skill.

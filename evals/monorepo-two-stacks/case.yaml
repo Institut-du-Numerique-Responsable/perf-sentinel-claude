@@ -1,0 +1,29 @@
+schema_version: "1.0"
+name: monorepo-two-stacks
+description: A diff spanning a Spring Boot service and a FastAPI service gets one scenario list per service.
+tags: [behavior]
+runs: 3
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: /perf-sentinel:perf-tests PROJ-1234
+  max_turns: 25
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
+graders:
+  - type: llm
+    name: one-list-per-service-naming-its-stack
+    criteria: |
+      The repository holds two services and the change touches both. contracts-api is Spring Boot on Java.
+      billing-api is FastAPI on Python.
+      The reply handles them separately, with one scenario list or one set of questions per service.
+      Each service section names its own stack, Spring Boot or Java for contracts-api and FastAPI or Python for billing-api.
+      The scenarios match the code of each service: the client contracts listing for contracts-api and the client invoices listing for billing-api.
+      The reply does not merge both services into one list and does not assume a single stack for the whole repository.
+      Each service gets its own capture run, or the reply plans to run and capture each service's tests separately.
+      A single capture run covering both services does not meet this criterion.
+  - type: llm
+    name: no-files-written
+    focus: trace
+    criteria: |
+      The run only reads. It does not create or edit any file and does not write any test before the developer validates the scenarios.
