@@ -1,0 +1,12 @@
+version: 2
+
+# Only GitHub Actions are tracked: the plugin has no package dependencies.
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Paris"
+    open-pull-requests-limit: 5
