@@ -133,10 +133,11 @@ Ask before running anything.
 
 Only for a bugfix. Ask before creating the worktree.
 
-- [ ] Run the same test on the base branch code, in a separate git worktree.
+- [ ] Run the same test on the base branch code, in a separate git worktree. The new test is not committed there, so copy the file into the worktree.
 - [ ] The finding must appear before and disappear after. If not, either the test does not reproduce the problem or the fix does not solve it. Say which one you suspect.
 - [ ] The test goes through the public entry point so it can run on both sides.
 - [ ] If the test does not compile or run on the base branch (changed API signature, migration), do this step on a best-effort basis, say so, and continue.
+- [ ] Afterwards remove the worktree. Ask first, as for any write.
 
 ## Fixes
 
@@ -154,7 +155,8 @@ Only when there are findings. Show the proposed fix and ask before applying it. 
 Only what Perf Sentinel already has. Load the CI reference that matches the detected CI. Ask before any change.
 
 - [ ] Wrap the existing test step with `perf-sentinel capture`. Never add a second step that runs the suite again.
-- [ ] Then `perf-sentinel analyze`, producing SARIF, JSON and HTML, archived with the build, on every branch.
+- [ ] Then `perf-sentinel analyze` for SARIF and JSON and `perf-sentinel report` for HTML, archived with the build, on every branch.
+- [ ] The snippets pass `--config .perf-sentinel.toml`. When recon found no such file, `analyze` exits 75 and the report step produces nothing. Either propose creating the file (preferred, `min_usable_span_ratio` needs it, and create it only after a yes) or drop `--config` from the snippets.
 - [ ] `.perf-sentinel-acknowledgments.toml`, versioned in the repo, is the register of unresolved findings: each entry has a reason, a reviewer and an expiration.
 - [ ] Show results in the PR only through what the CI reference describes (SARIF to code scanning, PR comment, GitLab report). If that needs a token or a permission, say so.
 - [ ] The gate is the team's choice. Recommend `analyze --ci` on pull requests, not on the main branch, show the change it makes, and do not turn it on yourself. The gate judges every trace of the suite with no comparison to the base branch, so findings from existing tests are the team's to fix or acknowledge.
@@ -175,7 +177,7 @@ End with a short summary:
 
 ## Untried references
 
-Each stack and CI reference starts with a status line. When it reads `Status: written from official docs, not yet tried`:
+Each stack and CI reference starts with a status line. A `Status: tried end-to-end` reference may add a `Tried:` / `Not tried:` line. The parts listed under `Not tried` count as untried. When the status reads `Status: written from official docs, not yet tried`, or for a part listed as not tried:
 
 - fetch the official page linked in the reference before acting on it
 - do the trace check of `Local run` even when the run looks green.

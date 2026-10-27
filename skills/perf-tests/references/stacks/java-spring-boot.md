@@ -62,7 +62,7 @@ Agent (Boot 3, or a project that already uses it):
 - **`mvn clean` deletes the capture file** when it sits under `target/`. Write it elsewhere or leave `clean` out of the wrapped command.
 - **Injected builders only.** A client built with `RestClient.builder()` is invisible, and so is every call it makes.
 - **`jdbc.includes` left at its default** adds connection and fetch spans on top of the statements. Set it to `QUERY`.
-- **Parameters read as `redundant_sql`.** Datasource Micrometer sanitizes literals and Hibernate binds `?1`, so a looped query can read as `redundant_sql`. See `Sanitized SQL and the reclassification` in [perf-sentinel.md](../perf-sentinel.md).
+- **Parameters read as `redundant_sql`.** Datasource Micrometer sanitizes literals and Hibernate binds `?`, so a looped query can read as `redundant_sql`. See `Sanitized SQL and the reclassification` in [perf-sentinel.md](../perf-sentinel.md).
 
 ## Running the tests under capture
 

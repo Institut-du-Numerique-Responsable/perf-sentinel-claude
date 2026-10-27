@@ -47,6 +47,7 @@ What this means when sizing a test:
 
 - The N+1 floor is 5 distinct values and the critical tier is 10. A test with 3 children never fires. The goal is the production shape, so the data volume comes from the developer's production numbers and 5 is only the floor.
 - The 500 ms window is measured on the trace. A fast local database stays well inside it. A loop slowed by a throttled test environment can fall outside it and be missed.
+- A Warning N+1 (5 to 9 occurrences) does not fail the default gate. Only a critical one (10 or more) trips `n_plus_one_sql_critical_max = 0`, besides the waste ratio. See `Gate defaults`.
 - N+1 counts distinct parameter values. Same-parameter repeats are `redundant_*`, not N+1.
 - Session statements a pooled driver emits at every connection checkout (`COMMIT`, `SET`) are skipped by the repetition detectors.
 - Slow, fanout, chatty, pool saturation and serialized findings are structural. They do not count in the I/O waste ratio.
@@ -55,7 +56,7 @@ What this means when sizing a test:
 
 An agent or driver that replaces literals with a placeholder (`?`, `$1`, `%s`, `@p0`, `:name`) hides the parameters, so the standard rule sees one parameter set and reports `redundant_sql` instead of an N+1. Perf Sentinel recovers the N+1 with a heuristic, `[detection] sanitizer_aware_classification`:
 
-- `auto` (default): reclassify as `n_plus_one_sql` when an ORM scope is on the spans (Spring Data, Hibernate, EF Core, SQLAlchemy and others) or when the span durations vary enough (coefficient of variation of 0.5 or more, `sanitizer_aware_min_cv`). At least 3 spans are needed for the variance signal.
+- `auto` (default): reclassify as `n_plus_one_sql` when an ORM scope is on the spans (Spring Data, Hibernate, EF Core, SQLAlchemy and others) or when the span durations vary enough (coefficient of variation above 0.5, `sanitizer_aware_min_cv`). At least 3 spans are needed for the variance signal.
 - `strict`: needs a primary signal (ORM scope, sequential siblings, or high occurrence) plus a corroborating one (timing variance or high occurrence). From 15 identical sanitized queries in a trace (3 times the minimum) it reclassifies on count alone. Below that, a cached repeat stays `redundant_sql`.
 - `always` reclassifies every sanitized group of at least 5. `never` turns the heuristic off.
 
@@ -63,11 +64,11 @@ A reclassified finding carries `classification_method = "sanitizer_heuristic"` i
 
 When a test is meant to reproduce an N+1 and the report shows `redundant_sql`, suspect these cases before suspecting the test:
 
-- **EF Core** (`@__param_0`) and **Hibernate** (`?1`) bind parameters hide the values. Under `auto`, the N+1 still reads as `n_plus_one_sql` when the ORM scope is on the SQL spans (the OpenTelemetry EF Core instrumentation puts it there). Without that scope, it reads as `redundant_sql`, and the finding is still correct about the repeated query.
+- **EF Core** (`@__param_0`) and **Hibernate** (`?`) bind parameters hide the values. Under `auto`, the N+1 still reads as `n_plus_one_sql` when the ORM scope is on the SQL spans (the OpenTelemetry EF Core instrumentation puts it there). Without that scope, it reads as `redundant_sql`, and the finding is still correct about the repeated query.
 - **gRPC and other RPC**: the arguments live in the message body, so N distinct calls to one method read as `redundant_http`.
-- **Redacted query strings**: .NET `System.Net.Http` redacts to `?*` by default. Calls that vary a query parameter then look identical and read as `redundant_http`. A loop that varies a path segment is not affected.
+- **Redacted query strings**: .NET redacts the query of `url.full` by default (the runtime on .NET 9 and later, the OpenTelemetry instrumentation before). Calls that vary a query parameter then look identical and read as `redundant_http`. A loop that varies a path segment is not affected. The opt-outs are in the .NET reference.
 - **Strict mode on a cached repeat** stays `redundant_sql` by design.
-- **In a test**, count `redundant_sql` on the looped template as the N+1 for EF Core, Hibernate bind parameters and bare drivers. Under the default `auto`, a bare driver with no ORM scope and uniform local timings stays `redundant_sql` at any count, because `auto` reads only the ORM scope and the duration spread, never the count. So that finding is the expected signal for the looped template, not a failed test. A count of 15 or more iterations (3 times the minimum) reclassifies it as `n_plus_one_sql` only when the project sets `sanitizer_aware_classification = "strict"`. Use at least 15 iterations on a bare driver so that `strict` reclassifies it too.
+- **In a test**, count either `n_plus_one_sql` or `redundant_sql` on the looped template as the N+1 for EF Core, Hibernate bind parameters and bare drivers. Under the default `auto`, a bare driver with no ORM scope and uniform local timings stays `redundant_sql` at any count, because `auto` reads only the ORM scope and the duration spread, never the count. So that finding is the expected signal for the looped template, not a failed test. A count of 15 or more iterations (3 times the minimum) reclassifies it as `n_plus_one_sql` only when the project sets `sanitizer_aware_classification = "strict"`. Use at least 15 iterations on a bare driver so that `strict` reclassifies it too.
 
 Links:
 
@@ -122,7 +123,9 @@ perf-sentinel capture --output <file outside the build dir> -- <test command>
 - Background form, only when the pipeline owns the test command and it cannot be prefixed: `perf-sentinel capture --output <file> &`, keep the pid, run the tests, then `kill -TERM $pid && wait $pid`.
 - Application side: set `OTEL_EXPORTER_OTLP_ENDPOINT` and also an explicit `OTEL_EXPORTER_OTLP_PROTOCOL`. SDKs disagree on their default, and an endpoint aimed at the wrong protocol exports nothing without saying so. `grpc` goes to port 4317, `http/protobuf` to port 4318. Sample at 100%.
 - A port already taken makes `capture` exit 1 before the command starts. Rerun on free ports and move the exporter endpoint to match.
-- Application in a container: `--listen-address 0.0.0.0`, and in the container `OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318` with `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`. Variables set on `capture` do not reach a container, so pass them with `docker run -e`. On Linux, as on CI runners, `host.docker.internal` resolves only with `docker run --add-host=host.docker.internal:host-gateway`. Docker Desktop resolves it by itself.
+- Application in a container: the container reaches `capture` through `host.docker.internal`, with `OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318` and `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` set inside it. Variables set on `capture` do not reach a container, so pass them with `docker run -e`.
+  - `--listen-address 0.0.0.0` opens an unauthenticated OTLP receiver on every interface. Keep it for ephemeral CI runners.
+  - On a developer machine, prefer a narrower address. Docker Desktop resolves `host.docker.internal` by itself and reaches `127.0.0.1`, so the default works. On Linux, `host.docker.internal` resolves only with `docker run --add-host=host.docker.internal:host-gateway`, and it points at the docker bridge gateway, so bind that address (`--listen-address <gateway address>`).
 
 ### analyze
 
@@ -170,12 +173,15 @@ The delta between two captures, for pull request regressions. An acknowledged fi
 Use the official GitHub release asset and verify it against the published `SHA256SUMS.txt` before running it:
 
 ```bash
+DEST=$(mktemp -d) && cd "$DEST"
 BASE_URL=https://github.com/Institut-du-Numerique-Responsable/perf-sentinel/releases/latest/download
 curl -sSLf -o perf-sentinel-linux-amd64 "$BASE_URL/perf-sentinel-linux-amd64"
 curl -sSLf -o SHA256SUMS.txt "$BASE_URL/SHA256SUMS.txt"
 grep 'perf-sentinel-linux-amd64' SHA256SUMS.txt | sha256sum -c -
 chmod +x perf-sentinel-linux-amd64
 ```
+
+The download goes to a temporary directory, never to the developer's repository. Ask where to put the binary (a directory on the `PATH`).
 
 Pick the asset that matches the platform from the release page, and use `shasum -a 256 -c -` where `sha256sum` is missing. Never use a third-party mirror. Ask before installing anything.
 
@@ -213,7 +219,7 @@ For a finding the developer decides to keep, propose this entry for `.perf-senti
 ```toml
 [[acknowledged]]
 signature = "<from the analyze JSON>"
-acknowledged_by = ""            # left for the developer to fill in
+acknowledged_by = "<REPLACE: the reviewer's name or handle>"
 acknowledged_at = "<today, YYYY-MM-DD>"
 reason = "<why it stays, with a link to the ticket or the decision>"
 expires_at = "<YYYY-MM-DD>"     # always set: an entry without a date is permanent
@@ -222,7 +228,7 @@ source_endpoint = "<the finding's source_endpoint, verbatim>"
 ```
 
 - Get the signature, and the `service` and `source_endpoint` values, from the same JSON: `perf-sentinel analyze --input <file> --format json | jq '.findings[] | {signature, service, source_endpoint}'`. The signature has the form `<finding_type>:<service>:<sanitized_endpoint>:<32 hex chars>`.
-- `signature`, `acknowledged_by`, `acknowledged_at` and `reason` are required. A missing one fails the run. `expires_at` is validated at load time.
+- `signature`, `acknowledged_by`, `acknowledged_at` and `reason` are required. A missing one fails the run. An empty `acknowledged_by` is accepted without error, so the developer must replace the placeholder, nothing will flag it. `expires_at` is validated at load time.
 - Fill `service` and `source_endpoint` so that the unmatched warning can tell "fixed" from "did not run".
 - One signature covers every recurrence of the same template on the same service and endpoint.
 - A fresh analysis reports an entry that suppressed nothing as the warning kind `unmatched_acknowledgment`, in the text output and in `warning_details` of the JSON. When the entry carries both `service` and `source_endpoint`, "the problem looks fixed" means the entry can be removed. "This proves nothing" means the endpoint emitted no I/O, so keep it. An expired entry is never reported, since it is inactive and its finding is back in the gate.
