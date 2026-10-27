@@ -1,0 +1,230 @@
+# Perf Sentinel facts
+
+What the skill needs to know about Perf Sentinel: which spans it can use, what makes each detector fire, the gate defaults, the commands, the exit codes and the acknowledgment entry. Numbers are the defaults. A project can override them in `.perf-sentinel.toml`, so read that file first and fall back to this page only when it is absent. Check the linked page before relying on a value for an unusual case.
+
+## What makes a span usable
+
+Perf Sentinel reads a closed list of span attributes. A span that lacks the one it needs is dropped with no warning and no error, so a thin report can mean no problem or no usable instrumentation. Never read an empty report as a clean one.
+
+| I/O kind | Needs | Notes |
+|----------|-------|-------|
+| SQL | `db.query.text` or `db.statement` | A non-SQL `db.system` (a document store, a cache) is dropped. A SQL span without the statement text is dropped. |
+| HTTP | `url.full` or `http.url` | A SERVER span is never an outbound call, even with a URL. A span that sets no kind stays eligible. |
+| RPC (gRPC, Dubbo) | `rpc.system` plus `rpc.service` or `rpc.method` | CLIENT spans only. Findings appear under the `_http` types. |
+| Messaging | `messaging.system` plus the destination (`messaging.destination.name` or `messaging.destination`) | PRODUCER spans only. A CONSUMER span, or a CLIENT poll or settle span, is ignored. |
+
+Attributes that enrich the findings without being required:
+
+- `service.name` on the resource: the service in every finding and in the acknowledgment signature. Without it the service is `unknown`.
+- `http.route` on server spans: the endpoint a finding is attributed to. Without it the endpoint falls back to the URL and the signature is less stable.
+- `code.*` attributes: the source location and a framework-specific fix.
+- `parent_span_id` (a real parent chain): fanout and serialized calls need it.
+
+Links:
+
+- Attribute list, RPC and messaging rules: https://perf-sentinel.dev/docs/INSTRUMENTATION#required-span-attributes
+- Placeholder styles per driver: https://perf-sentinel.dev/docs/INSTRUMENTATION#sql-placeholder-styles-and-detection
+- Sampling, which must be 100% in tests: https://perf-sentinel.dev/docs/INSTRUMENTATION#sampling-and-filtering
+- Why instrumentation bounds the findings: https://perf-sentinel.dev/docs/LIMITATIONS#instrumentation-quality-bounds-findings
+
+## Detectors
+
+Defaults, evaluated per trace. Each threshold is a key of `[detection]` in `.perf-sentinel.toml`.
+
+| Finding | Fires when | Severity |
+|---------|-----------|----------|
+| `n_plus_one_sql` | The same normalized query runs at least 5 times in one trace, with at least 5 distinct parameter sets, inside a 500 ms window (`n_plus_one_min_occurrences`, `window_duration_ms`) | Warning, Critical from 10 occurrences |
+| `n_plus_one_http` | Same rule on one outbound HTTP or RPC target, distinct path or query values | Warning, Critical from 10 |
+| `n_plus_one_messaging` | Same rule on one publish destination | Warning, Critical from 10 |
+| `redundant_sql`, `redundant_http` | The same template with the same parameters, at least 2 times in one trace. A group already reported as an N+1 is not repeated here | Info under 5, Warning from 5 |
+| `slow_sql`, `slow_http`, `slow_messaging` | At least 3 occurrences of one template slower than 500 ms (`slow_query_min_occurrences`, `slow_query_threshold_ms`) | Warning, Critical when the slowest exceeds 5 times the threshold |
+| `excessive_fanout` | One parent span has more than 20 direct children (`max_fanout`). Needs `parent_span_id` | Warning, Critical above 3 times the limit |
+| `chatty_service` | A trace makes more than 15 outbound HTTP calls (`chatty_service_min_calls`) | Warning, Critical above 3 times the limit |
+| `pool_saturation` | A peak of 10 or more SQL spans of one service running at the same time (`pool_saturation_concurrent_threshold`) | Warning |
+| `serialized_calls` | At least 3 sequential sibling calls with distinct templates and no time overlap under one parent (`serialized_min_sequential`) | Info |
+
+What this means when sizing a test:
+
+- The N+1 floor is 5 repeats and the critical tier is 10. A test with 3 children never fires, so the data volume must come from the developer's production numbers.
+- The 500 ms window is measured on the trace. A fast local database stays well inside it. A loop slowed by a throttled test environment can fall outside it and be missed.
+- N+1 counts distinct parameter values. Same-parameter repeats are `redundant_*`, not N+1.
+- Session statements a pooled driver emits at every connection checkout (`COMMIT`, `SET`) are skipped by the repetition detectors.
+- Slow, fanout, chatty, pool saturation and serialized findings are structural. They do not count in the I/O waste ratio.
+
+### Sanitized SQL and the reclassification
+
+An agent or driver that replaces literals with a placeholder (`?`, `$1`, `%s`, `@p0`, `:name`) hides the parameters, so the standard rule sees one parameter set and reports `redundant_sql` instead of an N+1. Perf Sentinel recovers the N+1 with a heuristic, `[detection] sanitizer_aware_classification`:
+
+- `auto` (default): reclassify as `n_plus_one_sql` when an ORM scope is on the spans (Spring Data, Hibernate, EF Core, SQLAlchemy and others) or when the span durations vary enough (coefficient of variation of 0.5 or more, `sanitizer_aware_min_cv`). At least 3 spans are needed for the variance signal.
+- `strict`: needs a primary signal (ORM scope, sequential siblings, or high occurrence) plus a corroborating one (timing variance or high occurrence). From 15 identical sanitized queries in a trace (3 times the minimum) it reclassifies on count alone. Below that, a cached repeat stays `redundant_sql`.
+- `always` reclassifies every sanitized group of at least 5. `never` turns the heuristic off.
+
+A reclassified finding carries `classification_method = "sanitizer_heuristic"` in the JSON.
+
+When a test is meant to reproduce an N+1 and the report shows `redundant_sql`, suspect these cases before suspecting the test:
+
+- **EF Core** (`@__param_0`) and **Hibernate** (`?1`) bind parameters hide the values, so the N+1 reads as `redundant_sql`. The finding is still correct about the repeated query.
+- **gRPC and other RPC**: the arguments live in the message body, so N distinct calls to one method read as `redundant_http`.
+- **Redacted query strings**: .NET `System.Net.Http` redacts to `?*` by default. Calls that vary a query parameter then look identical and read as `redundant_http`. A loop that varies a path segment is not affected.
+- **Strict mode on a cached repeat** stays `redundant_sql` by design.
+
+Links:
+
+- Detection algorithms: https://perf-sentinel.dev/docs/design/04-DETECTION
+- ORM bind parameters: https://perf-sentinel.dev/docs/LIMITATIONS#orm-bind-parameters-and-n1-vs-redundant-classification
+- The `[detection]` keys: https://perf-sentinel.dev/docs/CONFIGURATION#detection
+
+## Gate defaults
+
+The quality gate is evaluated on every `analyze`. It only changes the exit code under `--ci`. Keys of `[thresholds]`:
+
+| Key | Default | Fails when |
+|-----|---------|------------|
+| `n_plus_one_sql_critical_max` | `0` | There are more critical N+1 SQL findings than this, so one is enough |
+| `n_plus_one_http_warning_max` | `3` | More than 3 N+1 HTTP findings of warning level or higher |
+| `n_plus_one_messaging_warning_max` | `3` | More than 3 N+1 messaging findings of warning level or higher |
+| `io_waste_ratio_max` | `0.30` | More than 30% of the analyzed I/O is avoidable (N+1 and redundant) |
+| `min_usable_span_ratio` | unset | The share of analyzable I/O spans is below it. Off by default |
+
+`min_usable_span_ratio` is the one to suggest enabling. It makes broken instrumentation fail the build instead of passing with zero findings:
+
+- Batch runs only (`analyze`, `report`), on OTLP input only. Native, Jaeger and Zipkin files carry no tally.
+- It is computed per I/O kind and the worst kind counts, so healthy HTTP cannot hide a blind SQL surface.
+- A kind with fewer than 20 spans is not judged. When no kind reaches 20, the rule is skipped and the report says so in a warning.
+- The figure is a fleet average, not a verdict per service. Leave headroom below 1.0.
+
+Acknowledged findings leave the gate. An expired acknowledgment puts its finding back in.
+
+Link: https://perf-sentinel.dev/docs/CONFIGURATION#thresholds
+
+## Commands
+
+### capture
+
+`capture` receives OTLP and writes it to a file. It never analyzes. Wrap the existing test command with it, so the suite runs once:
+
+```bash
+perf-sentinel capture --output <file outside the build dir> -- <test command>
+```
+
+| Flag | Default | Use |
+|------|---------|-----|
+| `--output`, `-o` | required | The NDJSON file. Its directory is created if missing. Keep it outside the build directory, since a `clean` deletes it |
+| `--listen-address` | `127.0.0.1` | `0.0.0.0` when the application runs in a container of the same job |
+| `--listen-port-grpc` | `4317` | A port already taken on the machine |
+| `--listen-port-http` | `4318` | Same |
+| `--max-file-size` | `512` (MiB) | A large suite. Past the cap the file is valid but incomplete and the run exits 2 |
+| `--grace-ms` | `2000` | Time kept listening after the command exits, for the exporter's last flush |
+
+- The command after `--` runs directly, not through a shell. Put a pipeline or an `&&` chain in a script and wrap the script.
+- The ports are bound before the command starts. Progress and the final count go to stderr, which tells "nothing was exported" from "no anti-patterns".
+- Background form, only when the pipeline owns the test command and it cannot be prefixed: `perf-sentinel capture --output <file> &`, keep the pid, run the tests, then `kill -TERM $pid && wait $pid`.
+- Application side: set `OTEL_EXPORTER_OTLP_ENDPOINT` and also an explicit `OTEL_EXPORTER_OTLP_PROTOCOL`. SDKs disagree on their default, and an endpoint aimed at the wrong protocol exports nothing without saying so. `grpc` goes to port 4317, `http/protobuf` to port 4318. Sample at 100%.
+- A port already taken makes `capture` exit 1 before the command starts. Rerun on free ports and move the exporter endpoint to match.
+- Application in a container: `--listen-address 0.0.0.0`, and in the container `OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318` with `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`.
+
+### analyze
+
+```bash
+perf-sentinel analyze --input <file> [--config .perf-sentinel.toml] [--format json|sarif] [--ci]
+```
+
+- Without `--format` the output is the colored text report. With `--ci` the output is JSON and the exit code reflects the gate.
+- Add `--config .perf-sentinel.toml` when the project has one. Every tuning knob lives in that file, none is a flag.
+- `--acknowledgments <path>` overrides `./.perf-sentinel-acknowledgments.toml`. `--no-acknowledgments` shows everything. `--show-acknowledged` includes the acknowledged findings with their metadata.
+- Reads stdin when `--input` is omitted. The input format is detected (native JSON, OTLP, Jaeger, Zipkin, the capture NDJSON).
+
+Checking that the capture is usable, from `--format json`:
+
+- `analysis.events_processed` and `analysis.traces_analyzed`: both above zero.
+- `analysis.ingest`, present on OTLP input: `spans_received`, `spans_filtered`, `usable_span_ratio`, and the per-reason counters `filtered_missing_db_statement` and `filtered_missing_http_url`. A high count there means the spans lack the SQL text or the URL.
+- A text search of the capture file for the diff's table names or endpoint.
+
+An empty capture file makes `analyze` exit 75, never a clean gate.
+
+Link: https://perf-sentinel.dev/docs/INTEGRATION#events-received-but-no-findings
+
+### report
+
+```bash
+perf-sentinel report --input <file> --output <file.html> [--config .perf-sentinel.toml]
+```
+
+The self-contained HTML dashboard, readable offline. It exits 0 even when the gate fails, the gate shows as a badge. SARIF and JSON come from `analyze --format`, HTML only from `report`.
+
+### diff
+
+```bash
+perf-sentinel diff --before <base-capture> --after <head-capture> [--config ...] [--format text|json|sarif]
+```
+
+The delta between two captures, for pull request regressions. An acknowledged finding is filtered from both sides, so its fix never shows as resolved.
+
+### inspect
+
+`perf-sentinel inspect` is an interactive terminal UI. It needs a terminal and exits 1 without one, so never run it from the skill. Use the JSON check above.
+
+### Install
+
+Use the official GitHub release asset and verify it against the published `SHA256SUMS.txt` before running it:
+
+```bash
+BASE_URL=https://github.com/Institut-du-Numerique-Responsable/perf-sentinel/releases/latest/download
+curl -sSLf -o perf-sentinel-linux-amd64 "$BASE_URL/perf-sentinel-linux-amd64"
+curl -sSLf -o SHA256SUMS.txt "$BASE_URL/SHA256SUMS.txt"
+grep 'perf-sentinel-linux-amd64' SHA256SUMS.txt | sha256sum -c -
+chmod +x perf-sentinel-linux-amd64
+```
+
+Pick the asset that matches the platform from the release page, and use `shasum -a 256 -c -` where `sha256sum` is missing. Never use a third-party mirror. Ask before installing anything.
+
+Links:
+
+- Capture reference: https://perf-sentinel.dev/docs/CLI#capture
+- CI recipes: https://perf-sentinel.dev/docs/CI#ci-integration-recipes
+
+## Exit codes
+
+`analyze` and the other batch commands:
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success. Under `--ci`, the gate passed |
+| `1` | Gate failed. Only `analyze --ci` emits it |
+| `2` | Usage error: a missing flag or an unsupported flag combination |
+| `75` | Tooling error: a missing, unreadable, empty or malformed input, config or acknowledgments file, or a failure writing the output. Never a gate breach |
+
+`capture`:
+
+| Code | Meaning |
+|------|---------|
+| `0` | Capture completed |
+| the command's own code | The wrapped command failed. A command killed by a signal gives `128 + signal` |
+| `1` | The capture itself failed (port taken, unwritable file), before the command started |
+| `2` | The file is incomplete: the size cap was hit or requests could not be queued fast enough. Any verdict from it understates the run |
+
+Link: https://perf-sentinel.dev/docs/CI#exit-codes
+
+## Acknowledgment entry
+
+For a finding the developer decides to keep, propose this entry for `.perf-sentinel-acknowledgments.toml`, versioned in the repository. An acknowledged finding is filtered from the output and excluded from the gate.
+
+```toml
+[[acknowledged]]
+signature = "<from the analyze JSON>"
+acknowledged_by = ""            # left for the developer to fill in
+acknowledged_at = "<today, YYYY-MM-DD>"
+reason = "<why it stays, with a link to the ticket or the decision>"
+expires_at = "<YYYY-MM-DD>"     # always set: an entry without a date is permanent
+service = "<the finding's service, verbatim>"
+source_endpoint = "<the finding's source_endpoint, verbatim>"
+```
+
+- Get the signature, and the `service` and `source_endpoint` values, from the same JSON: `perf-sentinel analyze --input <file> --format json | jq '.findings[] | {signature, service, source_endpoint}'`. The signature has the form `<finding_type>:<service>:<sanitized_endpoint>:<32 hex chars>`.
+- `signature`, `acknowledged_by`, `acknowledged_at` and `reason` are required. A missing one fails the run. `expires_at` is validated at load time.
+- Fill `service` and `source_endpoint` so that the unmatched warning can tell "fixed" from "did not run".
+- One signature covers every recurrence of the same template on the same service and endpoint.
+- A fresh analysis reports an entry that suppressed nothing as the warning kind `unmatched_acknowledgment`, in the text output and in `warning_details` of the JSON. When the entry carries both `service` and `source_endpoint`, "the problem looks fixed" means the entry can be removed. "This proves nothing" means the endpoint emitted no I/O, so keep it. An expired entry is never reported, since it is inactive and its finding is back in the gate.
+- A signature changes when the service name or the endpoint attribution changes, so an upgrade of the instrumentation can orphan an entry.
+
+Link: https://perf-sentinel.dev/docs/ACKNOWLEDGMENTS
