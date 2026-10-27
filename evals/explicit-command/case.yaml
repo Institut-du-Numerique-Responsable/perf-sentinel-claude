@@ -1,0 +1,40 @@
+schema_version: "1.0"
+name: explicit-command
+description: The explicit command starts with a read-only recon of the repo, then asks questions or proposes scenarios.
+tags: [trigger, behavior]
+runs: 3
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: /perf-sentinel:perf-tests PROJ-1234
+  max_turns: 20
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
+graders:
+  - type: tool_used
+    name: skill-fired
+    tool: Skill
+    input_match: perf-tests
+  - type: llm
+    name: recon-only-no-edits
+    focus: trace
+    criteria: |
+      The run only reads. It uses read-only tools such as Read, Glob, Grep or git diff and git log.
+      It does not create, edit or delete any file, and it does not run a build, a test or an install command.
+      It does not write any test code, neither in a file nor as a finished test class in the reply.
+  - type: llm
+    name: recon-grounded-in-the-repo
+    criteria: |
+      The reply shows that the agent looked at this repository before saying anything else.
+      It names the stack as Spring Boot on Java with Maven and Spring Data JPA.
+      It points at the existing integration test ContractControllerIT, which uses Testcontainers with PostgreSQL.
+      It says whether OpenTelemetry instrumentation is present or missing.
+      It identifies the change as the client contracts listing, meaning the new findByClientId query followed by one findByContractId query per contract.
+      It links the work to the ticket PROJ-1234 or says the ticket content could not be read.
+  - type: llm
+    name: ends-with-questions-or-scenarios
+    criteria: |
+      The reply ends by handing control back to the developer, either with concrete business questions
+      (volume of data for a typical and for the biggest client, peaks, growth over time) or with a short list of
+      scenarios to validate, for example an endpoint with a client holding many contracts with several lines each.
+      It does not say that tests were written. It asks for validation or answers before writing any test.

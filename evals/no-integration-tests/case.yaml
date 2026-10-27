@@ -1,0 +1,25 @@
+schema_version: "1.0"
+name: no-integration-tests
+description: A repo with unit tests only has no integration test style to copy, so the skill asks before creating a harness.
+tags: [behavior]
+runs: 3
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: /perf-sentinel:perf-tests PROJ-1234
+  max_turns: 20
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
+graders:
+  - type: llm
+    name: says-there-is-no-it-style-to-copy
+    criteria: |
+      The reply says that the repository has no integration tests, only unit tests with mocks such as ContractServiceTest,
+      so there is no existing integration test style to follow.
+      It does not invent an integration test style and does not pretend that ContractServiceTest is one.
+  - type: llm
+    name: asks-before-creating-a-harness
+    focus: trace
+    criteria: |
+      The reply asks the developer whether to create an integration test harness, for example with Testcontainers and a real database,
+      and waits for the answer. The run does not create any file, does not edit pom.xml and does not write any test.
