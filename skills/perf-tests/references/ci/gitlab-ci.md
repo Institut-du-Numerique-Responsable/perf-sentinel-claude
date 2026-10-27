@@ -82,8 +82,8 @@ integration-tests:
 - [ ] `exit 75` blocks a merge request unless the job carries `allow_failure: exit_codes: [75]`. Put it in the job from the start, as in the snippet, so an empty capture never reddens a pipeline when no gate is enabled. Only the optional gate may fail the build.
 - [ ] The commands pass `--config .perf-sentinel.toml`. With no such file `analyze` exits 75 and nothing is reported, so create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
 - [ ] SARIF and JSON from `analyze --format`, HTML from `report`. Archive all three with `artifacts:` and `when: always`, on every branch.
-- [ ] Convert the JSON to `gl-code-quality-report.json` with the `jq` filter of the snippet: one entry per finding, with the fields GitLab requires (`description`, `check_name`, `fingerprint`, `severity`, `location.path`, `location.lines.begin`). It maps `critical` to `critical`, `warning` to `major` and the rest to `info`, and uses the finding's `code_location` for the path and line, `unknown` and `1` when the spans carry no `code.*` attributes.
-- [ ] Two lines differ from Perf Sentinel's template, keep them. The template has no `check_name`, which the Code Quality format requires. It builds the fingerprint from the `trace_id`, which changes on every run, so a finding never matches the target branch's baseline. The finding's `signature` stays the same from run to run as long as the finding keeps its type, service, endpoint and query template. A finding that changes type between runs (`redundant_sql` then `n_plus_one_sql`) gets a new signature. GitLab shows findings with the same fingerprint as one entry.
+- [ ] Convert the JSON to `gl-code-quality-report.json` with the `jq` filter of the snippet: one entry per finding, with the fields GitLab requires (`description`, `check_name`, `fingerprint`, `severity`, `location.path`, `location.lines.begin`). It maps `critical` to `critical`, `warning` to `major` and the rest to `info`, and uses the finding's `code_location` for the path and line, `unknown` and `1` when the spans carry no `code.*` attributes. A line of 0 also becomes `1`, since jq's `//` only replaces a null.
+- [ ] Perf Sentinel's template uses the same `check_name` and signature fingerprint from 0.35.0 on. Templates copied from an older version have no `check_name`, which the Code Quality format requires, and build the fingerprint from the `trace_id`, which changes on every run, so a finding never matches the target branch's baseline: replace those two lines. The finding's `signature` stays the same from run to run as long as the finding keeps its type, service, endpoint and query template. A finding that changes type between runs (`redundant_sql` then `n_plus_one_sql`) gets a new signature. GitLab shows findings with the same fingerprint as one entry.
 - [ ] The analyze job needs `jq`. Install it in the job's image, with `|| exit 75` on the install line, as in the snippet.
 - [ ] A failing `jq` is a bug in the filter, so it must not exit `75`.
 - [ ] The ack file `.perf-sentinel-acknowledgments.toml` is read from the working directory. Run from `$CI_PROJECT_DIR`, or pass `--acknowledgments`. Entry template: [perf-sentinel.md](../perf-sentinel.md), section `Acknowledgment entry`.
@@ -113,7 +113,7 @@ perf-sentinel:
           ),
           location: {
             path: (.code_location.filepath // "unknown"),
-            lines: { begin: (.code_location.lineno // 1) }
+            lines: { begin: (if (.code_location.lineno // 0) > 0 then .code_location.lineno else 1 end) }
           }
         }
       ]' perf-sentinel-report.json > gl-code-quality-report.json
