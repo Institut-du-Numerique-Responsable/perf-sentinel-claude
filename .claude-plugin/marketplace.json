@@ -1,0 +1,13 @@
+{
+  "name": "perf-sentinel",
+  "description": "Performance integration tests checked by Perf Sentinel.",
+  "owner": {
+    "name": "Robin Trassard"
+  },
+  "plugins": [
+    {
+      "name": "perf-sentinel",
+      "source": "./"
+    }
+  ]
+}
