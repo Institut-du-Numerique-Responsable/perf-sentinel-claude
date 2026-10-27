@@ -43,6 +43,6 @@ Grant `Write` and `Edit` at run level, otherwise the no-edit graders cannot fail
 
 ## License
 
-Code: **Apache-2.0**. Skill, references and documentation: **CC BY 4.0**. Code examples in the references, such as CI snippets, may also be used under Apache-2.0. See the [license scope](LICENSE) and the [credits](skills/perf-tests/NOTICE).
+Code: **Apache-2.0**. Skill, references and documentation: **CC BY 4.0**. Code examples in the references, such as CI snippets, may also be used under Apache-2.0. [LICENSE](LICENSE) holds the Apache-2.0 text, [NOTICE](NOTICE) explains which license covers what and how to credit the work.
 
 © 2026 Institut du Numérique Responsable. Perf Sentinel itself is a separate work under AGPL-3.0-only.
