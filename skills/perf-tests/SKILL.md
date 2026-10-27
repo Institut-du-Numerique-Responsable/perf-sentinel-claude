@@ -17,6 +17,8 @@ If the user did not type `/perf-sentinel:perf-tests` and did not say yes to your
 
 Once started, `Recon`, `Change scope` and `Business context` only read. Every step that writes a file, edits the build, installs a tool, starts a container, runs tests or touches the CI asks first and waits for a clear yes. One yes covers the action it answered, not the next one.
 
+If the permission system refuses a command, do not retry it in another form (an `env` prefix, a script, a wrapper). Show the exact command and ask the developer to run it or to allow it.
+
 Your first message after the recon always ends with questions or scenarios to validate. Never write a test in that message, neither in a file nor as finished code in the reply.
 
 Answer in the developer's language. The files you write follow the project's language.
