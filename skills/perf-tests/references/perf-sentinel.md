@@ -122,7 +122,7 @@ perf-sentinel capture --output <file outside the build dir> -- <test command>
 - Background form, only when the pipeline owns the test command and it cannot be prefixed: `perf-sentinel capture --output <file> &`, keep the pid, run the tests, then `kill -TERM $pid && wait $pid`.
 - Application side: set `OTEL_EXPORTER_OTLP_ENDPOINT` and also an explicit `OTEL_EXPORTER_OTLP_PROTOCOL`. SDKs disagree on their default, and an endpoint aimed at the wrong protocol exports nothing without saying so. `grpc` goes to port 4317, `http/protobuf` to port 4318. Sample at 100%.
 - A port already taken makes `capture` exit 1 before the command starts. Rerun on free ports and move the exporter endpoint to match.
-- Application in a container: `--listen-address 0.0.0.0`, and in the container `OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318` with `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`.
+- Application in a container: `--listen-address 0.0.0.0`, and in the container `OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318` with `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`. Variables set on `capture` do not reach a container, so pass them with `docker run -e`. On Linux, as on CI runners, `host.docker.internal` resolves only with `docker run --add-host=host.docker.internal:host-gateway`. Docker Desktop resolves it by itself.
 
 ### analyze
 
