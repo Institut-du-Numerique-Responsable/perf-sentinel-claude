@@ -49,14 +49,14 @@ management.tracing.export.otlp.enabled=true
 
 Agent (Boot 3, or a project that already uses it):
 
-- Maven: copy the agent jar with `maven-dependency-plugin` (`copy` goal, `pre-integration-test` phase) and append `-javaagent:${project.build.directory}/opentelemetry-javaagent.jar` to the existing Failsafe `<argLine>`, after `@{argLine}` so JaCoCo keeps working. Never overwrite the `argLine`. Gradle: `jvmArgs` on the `Test` task.
+- Maven: copy the agent jar with `maven-dependency-plugin` (`copy` goal, `pre-integration-test` phase) and append `-javaagent:${project.build.directory}/opentelemetry-javaagent.jar` to the existing Failsafe `<argLine>`, after `@{argLine}` so JaCoCo keeps working. Never overwrite the `argLine`. Write `@{argLine}` only when the build defines an `argLine` property (JaCoCo's `prepare-agent` does): an undefined one reaches the JVM as is and the fork fails to start. Gradle: `jvmArgs` on the `Test` task.
 - Set `OTEL_TRACES_EXPORTER=otlp`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and an explicit `OTEL_EXPORTER_OTLP_PROTOCOL`. The agent defaults to `http/protobuf` since 2.0, so `http/protobuf` means port 4318 and `grpc` port 4317. Add `OTEL_TRACES_SAMPLER=always_on`, `OTEL_SERVICE_NAME`, and `OTEL_METRICS_EXPORTER=none`, `OTEL_LOGS_EXPORTER=none`.
 - Use real environment variables or system properties. The agent starts before Spring, so `application.properties` never reaches it.
 - Pin the agent version to what the project's Dockerfile or CI uses, if any.
 
 ## Test-time traps
 
-- **`@SpringBootTest` turns export off.** Spring Boot's docs say tracing components that report data are not auto-configured there. In Boot 4 the switch is a context customizer in `spring-boot-micrometer-tracing-test` that sets `management.tracing.export.enabled=false` when that module is on the test classpath. Fix, any one of: `@AutoConfigureTracing` on the test, `spring.test.tracing.export=true`, or `management.tracing.export.otlp.enabled=true`. In Boot 3 the annotation is `@AutoConfigureObservability`.
+- **`@SpringBootTest` turns export off.** Spring Boot's docs say tracing components that report data are not auto-configured there. In Boot 4 the switch is a context customizer in `spring-boot-micrometer-tracing-test` that sets `management.tracing.export.enabled=false` when that module is on the test classpath. Fix, any one of: `@AutoConfigureTracing` on the test, `spring.test.tracing.export=true`, or `management.tracing.export.otlp.enabled=true`. In Boot 3 the annotation is `@AutoConfigureObservability`. The switch only covers Spring's own exporters: the agent exports from its own SDK, so a project on the agent needs none of these.
 - **Sliced tests never export** (`@WebMvcTest`, `@DataJpaTest`). Use `@SpringBootTest` for the scenario.
 - **Forked test JVM, no stdout.** Surefire and Failsafe use the fork's stdout as their command channel, so a stdout span exporter is diverted to a `.dumpstream` file. Send OTLP to `perf-sentinel capture` instead.
 - **`mvn clean` deletes the capture file** when it sits under `target/`. Write it elsewhere or leave `clean` out of the wrapped command.
@@ -68,6 +68,8 @@ Agent (Boot 3, or a project that already uses it):
 ## Running the tests under capture
 
 - Maven: `perf-sentinel capture --output <file outside target/> -- mvn verify`. Gradle: wrap `./gradlew integrationTest` (or the project's task) the same way.
+- Use the project's wrapper and run it from the directory that holds it. In a repository with the Maven build in a subdirectory, `./mvnw` at the repository root does not exist.
+- To run one Failsafe class in a multi-module build: `-pl <module> -am verify -Dit.test=<Class>IT -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false -Dfailsafe.failIfNoSpecifiedTests=false`. Without the two `false` flags, every module with no matching class fails the build.
 - A starter export is batched: use a longer `--grace-ms` than the default, for example 3000, so the last test's spans flush.
 - Starter, HTTP/protobuf: endpoint `http://localhost:4318/v1/traces`. Agent: match `OTEL_EXPORTER_OTLP_PROTOCOL` and the port.
 - Then the trace check from `Local run` in the skill: `analysis.events_processed` above zero, and the diff's tables in the capture file. A starter project without Datasource Micrometer gives zero SQL spans and zero findings.
