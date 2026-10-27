@@ -2,6 +2,8 @@
 
 Status: tried end-to-end
 
+Tried: `WebApplicationFactory` with EF Core, the instrumentation already in place. Not tried: adding the instrumentation to a project, SqlClient, Npgsql, a project with two SQL layers.
+
 ## Recommended instrumentation
 
 - Library first: the OpenTelemetry SDK configured in code. Microsoft's observability page calls it the most powerful and configurable path when you can rebuild the app. It also works with NativeAOT.
@@ -19,7 +21,10 @@ Status: tried end-to-end
 Contract and attribute list: [perf-sentinel.md](../perf-sentinel.md), section `What makes a span usable`.
 
 - [ ] **SQL text.** SqlClient puts it in `db.query.text`. EF Core puts it in `db.statement` by default and in `db.query.text` with `OTEL_SEMCONV_STABILITY_OPT_IN=database`. Perf Sentinel reads both. A SqlClient stored procedure carries `db.stored_procedure.name` and no text, so it cannot be analyzed. Npgsql: its page does not name the attribute, check the capture.
-- [ ] **Outbound HTTP.** The HttpClient instrumentation sets `url.full`. It replaces the values of the query string by `Redacted` by default, so a loop that varies a query parameter reads as repeated identical calls (`redundant_http`, not an N+1). Set `OTEL_DOTNET_EXPERIMENTAL_HTTPCLIENT_DISABLE_URL_QUERY_REDACTION=true` for the test run, or vary a path segment.
+- [ ] **Outbound HTTP.** `url.full` has its query redacted by default, so a loop that varies a query parameter reads as repeated identical calls (`redundant_http`, not an N+1). The opt-out depends on the target framework:
+  - .NET 9 and later: the runtime itself sets `url.full` with the whole query replaced by `*` ([built-in activities](https://learn.microsoft.com/en-us/dotnet/core/diagnostics/distributed-tracing-builtin-activities)). The opt-out is the AppContext switch `System.Net.Http.DisableUriRedaction`, or `DOTNET_SYSTEM_NET_HTTP_DISABLEURIREDACTION=true` ([breaking change page](https://learn.microsoft.com/en-us/dotnet/core/compatibility/networking/9.0/query-redaction-logs)). The switch also removes the user info and the fragment redaction.
+  - Before .NET 9: the HttpClient instrumentation of OpenTelemetry redacts the values to `Redacted`, and `OTEL_DOTNET_EXPERIMENTAL_HTTPCLIENT_DISABLE_URL_QUERY_REDACTION=true` turns it off ([package readme](https://github.com/open-telemetry/opentelemetry-dotnet-contrib/blob/main/src/OpenTelemetry.Instrumentation.Http/README.md)).
+  - Either way, a loop that varies a path segment needs no switch. Ask before disabling redaction, since a query can carry secrets.
 - [ ] **`http.route` and `service.name`.** The ASP.NET Core instrumentation sets `http.route`. Set `service.name` with `.ConfigureResource(r => r.AddService("<name>"))` or `OTEL_SERVICE_NAME`.
 - [ ] **Sampling.** The default is `ParentBased(AlwaysOn)`, which is 100%. Do not add a sampler. If the project sets one, switch it to always on for tests.
 - [ ] **EF Core N+1 classification.** Bind parameters (`@__param_0`, `@order_Id`) hide the values. With the EF Core instrumentation, its scope (`OpenTelemetry.Instrumentation.EntityFrameworkCore`) is on the SQL spans, so the default `auto` mode reports `n_plus_one_sql` with `classification_method = "sanitizer_heuristic"`. With SQL spans from the driver instrumentation only (SqlClient, Npgsql), no ORM scope is present and the N+1 can read as `redundant_sql`, still on the repeated query. See `Sanitized SQL and the reclassification` in [perf-sentinel.md](../perf-sentinel.md).

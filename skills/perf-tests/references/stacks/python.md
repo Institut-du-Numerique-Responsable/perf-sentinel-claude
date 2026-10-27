@@ -2,11 +2,13 @@
 
 Status: tried end-to-end
 
+Tried: FastAPI with async SQLAlchemy over asyncpg, run under `unittest` with the instrumentation already set up in code. Not tried: Django, psycopg, the pytest session fixture, xdist.
+
 ## Recommended instrumentation
 
 - Library first: the OpenTelemetry SDK with the instrumentation packages for the project's frameworks, configured in code. The zero-code `opentelemetry-instrument` command is the fallback, and it breaks with several workers or a reloader (see the traps). If the project already uses it, keep it for this PR and mention the programmatic setup as a separate migration.
 - Packages: `opentelemetry-sdk`, an OTLP exporter (`opentelemetry-exporter-otlp-proto-grpc` for port 4317, `opentelemetry-exporter-otlp-proto-http` for port 4318), then:
-  - **Django**: `opentelemetry-instrumentation-django`, and `opentelemetry-instrumentation-psycopg` for SQL (`PsycopgInstrumentor().instrument()`).
+  - **Django**: `opentelemetry-instrumentation-django`, and `opentelemetry-instrumentation-psycopg` for SQL (`PsycopgInstrumentor().instrument()`). Match the instrumentor to the driver the project imports: a project on `psycopg2` needs `opentelemetry-instrumentation-psycopg2` and `Psycopg2Instrumentor`.
   - **FastAPI**: `opentelemetry-instrumentation-fastapi` (`FastAPIInstrumentor.instrument_app(app)`) and `opentelemetry-instrumentation-sqlalchemy` (`SQLAlchemyInstrumentor().instrument(engine=engine)`). Add `opentelemetry-instrumentation-asyncpg` (`AsyncPGInstrumentor().instrument()`) when the driver is asyncpg.
   - Outbound HTTP: `opentelemetry-instrumentation-requests`, `-httpx` or `-aiohttp-client`, whichever the project uses.
 - Check the current version of every package on its page. Install them at matching versions. Write no version number from this file.
