@@ -46,6 +46,7 @@ Status: written from official docs, not yet tried
 - [ ] A report-only step after the tests, with no `--ci`, on every branch, with `condition: succeededOrFailed()` so the report exists when the tests failed.
 - [ ] Give it `continueOnError: true`. An empty capture makes `analyze` exit `75`, and without the tolerance that would fail every branch with no gate enabled. The step then ends as "succeeded with issues", the build is partially succeeded instead of failed. Only the optional gate may fail the build.
 - [ ] On success the step sets a variable (`##vso[task.setvariable variable=psReport]true`), which the gate checks. A variable set in a step is available to the later steps of the job only.
+- [ ] The commands pass `--config .perf-sentinel.toml`. With no such file `analyze` exits 75, nothing is reported and the gate is skipped, so a run passes while seeing nothing. Create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
 - [ ] SARIF and JSON from `analyze --format`, HTML from `report`. Write them into one folder.
 - [ ] Publish the folder with a `publish:` step (shortcut of the `PublishPipelineArtifact@1` task) and `condition: succeededOrFailed()`. On Azure DevOps Server the `publish` step is not supported, use the Publish Build Artifacts task there.
 - [ ] The ack file `.perf-sentinel-acknowledgments.toml` is read from the working directory. Run from the repository root, or pass `--acknowledgments`. Entry template: [perf-sentinel.md](../perf-sentinel.md), section `Acknowledgment entry`.

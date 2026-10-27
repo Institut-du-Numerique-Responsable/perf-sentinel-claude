@@ -46,6 +46,7 @@ Status: written from official docs, not yet tried
 - [ ] A report-only step after the tests, with no `--ci`, on every branch, with `when: always` so the report exists when the tests failed.
 - [ ] Tolerate its failure: an empty capture makes `analyze` exit `75`, and without the tolerance that would fail every branch with no gate enabled. Test the commands in an `if`, print a message on failure, and let the step exit `0`. Only the optional gate may fail the build.
 - [ ] On success the step writes a marker file, which the gate checks.
+- [ ] The commands pass `--config .perf-sentinel.toml`. With no such file `analyze` exits 75, nothing is reported and the gate is skipped, so a run passes while seeing nothing. Create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
 - [ ] SARIF and JSON from `analyze --format`, HTML from `report`. Write them into one folder.
 - [ ] Archive the folder with `store_artifacts`. It runs even when an earlier step failed, but not when the job is cancelled or times out.
 - [ ] The ack file `.perf-sentinel-acknowledgments.toml` is read from the working directory. Run from the repository root, or pass `--acknowledgments`. Entry template: [perf-sentinel.md](../perf-sentinel.md), section `Acknowledgment entry`.

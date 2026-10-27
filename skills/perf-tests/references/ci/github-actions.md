@@ -44,6 +44,7 @@ Status: written from official docs, not yet tried
 
 - [ ] A report-only step after the tests, with no `--ci`, so a gate breach never hides the report. Run it on every branch and keep it even when the tests failed (`if: always()`).
 - [ ] Give it `id: analyze` and `continue-on-error: true`, as Perf Sentinel's template does. An empty capture makes `analyze` exit `75`, and without the tolerance that would turn every branch red with no gate enabled. Only the optional gate may fail the build. Later steps key off `steps.analyze.outcome`, and a closing step warns when it is not `success`.
+- [ ] The commands pass `--config .perf-sentinel.toml`. With no such file `analyze` exits 75, nothing is reported and the gate is skipped, so a run passes while seeing nothing. Create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
 - [ ] Write SARIF and JSON, then HTML from `report`. `analyze` gives only text, SARIF and JSON.
 - [ ] Write each file under a `.tmp` name and rename it on success, so a crashed `analyze` leaves no empty file that later steps mistake for a report.
 - [ ] Archive the three files with `actions/upload-artifact`. Pin every third-party action to a full commit SHA, with the tag in a comment, and check the SHA upstream.

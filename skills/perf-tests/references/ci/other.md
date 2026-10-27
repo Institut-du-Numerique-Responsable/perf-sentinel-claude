@@ -22,6 +22,7 @@ The binary must be on the agent before `capture`: official release, SHA256 check
 ## Analyze and archive
 
 - [ ] Report-only commands must not fail the build on their own: an empty capture makes `analyze` exit `75`, so tolerate that code here and let only the optional gate fail. The commands, in this shape: `perf-sentinel analyze --input <file> --config .perf-sentinel.toml --format sarif`, the same with `--format json`, and `perf-sentinel report --input <file> --config .perf-sentinel.toml --output report.html`. Only `analyze --ci` sets the gate exit code. `report` exits `0` even when the gate fails.
+- [ ] `--config .perf-sentinel.toml` needs the file. With none, `analyze` exits 75 and the run passes while seeing nothing. Create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
 - [ ] Exit codes to branch on: `1` is a breach, `75` is a tooling error, never a breach, [perf-sentinel.md](../perf-sentinel.md), section `Exit codes`. A pipeline that treats every non-zero code alike blocks on a download failure.
 - [ ] Where the pipeline offers a way to keep files with the build, use it for the three outputs. If it has none, say so.
 

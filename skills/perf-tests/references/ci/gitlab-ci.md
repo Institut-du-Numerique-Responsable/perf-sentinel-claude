@@ -15,7 +15,7 @@ Status: written from official docs, not yet tried
 - [ ] Each job has its own workspace. Perf Sentinel's template installs the binary in the analyze job only, but `capture` runs in the test job, so the install must run in the test job too. Reuse the same lines in both with `!reference` or `extends`, or run `analyze` in the test job itself.
 - [ ] Prefix the existing `script:` command with `capture`. Never add a second job that reruns the suite.
 - [ ] Set the exporter variables on the job: [perf-sentinel.md](../perf-sentinel.md), section `capture`.
-- [ ] Hand the capture file to the next job with `artifacts:` and `dependencies:` or `needs:`.
+- [ ] Hand the capture file to the next job with `artifacts:` and `dependencies:` or `needs:`. Put `when: always` on the test job's `artifacts:`, since the default `on_success` drops the capture when the tests fail.
 
 ```yaml
 integration-tests:
@@ -27,6 +27,7 @@ integration-tests:
     # install lines first, as above
     - ${CI_PROJECT_DIR}/bin/perf-sentinel capture --output traces.ndjson -- <existing test command>
   artifacts:
+    when: always
     paths: [traces.ndjson]
     expire_in: 1 day
 ```
@@ -35,8 +36,9 @@ integration-tests:
 
 ## Analyze and archive
 
-- [ ] A `perf-sentinel` job in a later stage, report-only first. End each report-only command with `|| exit 75`, so a tooling failure has its own exit code and is never read as a gate breach.
+- [ ] A `perf-sentinel` job in a later stage, report-only first. `when: always` on the job keeps the report when the tests fail, otherwise the later stage is skipped. End each report-only command with `|| exit 75`, so a tooling failure has its own exit code and is never read as a gate breach.
 - [ ] `exit 75` blocks a merge request unless the job carries `allow_failure: exit_codes: [75]`. Put it in the job from the start, as in the snippet, so an empty capture never reddens a pipeline when no gate is enabled. Only the optional gate may fail the build.
+- [ ] The commands pass `--config .perf-sentinel.toml`. With no such file `analyze` exits 75 and nothing is reported, so create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
 - [ ] SARIF and JSON from `analyze --format`, HTML from `report`. Archive all three with `artifacts:` and `when: always`, on every branch.
 - [ ] Convert the JSON to `gl-code-quality-report.json` with `jq`: one entry per finding, with `description`, `fingerprint`, `severity` and `location`. Perf Sentinel's template maps `critical` to `critical`, `warning` to `major` and the rest to `info`, and uses the finding's `code_location` for the path and line. Read the exact filter in the CI recipes link below instead of inventing one.
 - [ ] A failing `jq` is a bug in the filter, so it must not exit `75`.
@@ -46,6 +48,7 @@ integration-tests:
 perf-sentinel:
   stage: perf-sentinel
   dependencies: [integration-tests]
+  when: always
   script:
     # install lines first, as above
     - ${CI_PROJECT_DIR}/bin/perf-sentinel analyze --input traces.ndjson --config .perf-sentinel.toml --format sarif > findings.sarif || exit 75
@@ -75,14 +78,19 @@ The gate is the team's choice. Recommend it on merge requests only, show the cha
 
 - [ ] Perf Sentinel's template ends the job `script:` with `"${CI_PROJECT_DIR}/bin/perf-sentinel" analyze --ci --input ... --config ... --format json > /dev/null`. It runs only after every report-only command succeeded, and keeps its own exit code: `1` for a breach.
 - [ ] `allow_failure: exit_codes: [75]`, already in the job above, lets a tooling failure through without blocking the merge request. It stays on the job: `rules:allow_failure` accepts only a boolean, and the CI lint rejects the mapping form there.
-- [ ] `rules:` runs the job on `merge_request_event` and on the default branch. The default-branch rule carries `allow_failure: true`, so a breach on trunk never turns the pipeline red.
+- [ ] `rules:` runs the job on `merge_request_event`, on the default branch, and on every other pipeline through a final catch-all rule, so other branches keep the report. The default-branch and catch-all rules carry `allow_failure: true`, so a breach there never turns the pipeline red. Each rule sets `when: always` to keep the report-only behavior of the job, because `rules:` overrides the job-level `when:`.
+- [ ] Merge request pipelines must run the test job too, otherwise `dependencies: [integration-tests]` points at a job that is not in the pipeline and the config is rejected. Check the test job's own `rules:`.
 - [ ] A checksum mismatch must always block. Do not add `|| exit 75` to the checksum line.
 - [ ] To block merging on a red job, the team enables "Pipelines must succeed" in the project's merge settings. Say so and leave it to them.
 
 ```yaml
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: always
+      allow_failure: true
+    - when: always
       allow_failure: true
 ```
 
