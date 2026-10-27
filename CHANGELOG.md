@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+
+- The GitHub Actions and GitLab CI references were tried end-to-end, locally with `act` and `gitlab-ci-local`, and fixed: release asset picked by architecture, tests still run when the download fails, report steps skipped on a cancelled GitHub run, a rejected SARIF upload tolerated, the GitLab install moved to a `.pre` job, and a stable Code Quality fingerprint.
+
 ## [0.1.0] - 2026-10-27
 
 ### Added
