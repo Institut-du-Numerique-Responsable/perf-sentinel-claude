@@ -4,7 +4,7 @@ Status: written from official docs, not yet tried
 
 ## Recommended instrumentation
 
-- Library first: the OpenTelemetry PHP extension plus the SDK and instrumentation packages from Composer, configured by environment variables. This is what opentelemetry.io calls PHP auto-instrumentation. It needs PHP 8.0 or later, the extension, Composer autoloading, the SDK and one or more instrumentation libraries. The extension alone generates no traces.
+- Library first: the OpenTelemetry PHP extension plus the SDK and instrumentation packages from Composer, configured by environment variables. This is what opentelemetry.io calls PHP auto-instrumentation. It needs a minimum PHP version (check it on the linked page), the extension, Composer autoloading, the SDK and one or more instrumentation libraries. The extension alone generates no traces.
 - Install: `pecl install opentelemetry` (or `pickle`, `PIE`, `install-php-extensions` in Docker, or a distro package), add `extension=opentelemetry.so` to `php.ini`, then `composer require open-telemetry/sdk open-telemetry/exporter-otlp`.
 - Instrumentation packages: `open-telemetry/opentelemetry-auto-pdo` for SQL, and `open-telemetry/opentelemetry-auto-laravel` or `open-telemetry/opentelemetry-auto-symfony` plus `open-telemetry/opentelemetry-auto-doctrine`.
 - OpenTelemetry also ships a PHP Distro (Linux packages, no Composer step). If the project already uses it, keep it for this PR and mention the Composer route as a separate migration.

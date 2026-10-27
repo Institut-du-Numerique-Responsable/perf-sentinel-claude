@@ -18,7 +18,7 @@ Status: written from official docs, not yet tried
 
 Contract and attribute list: [perf-sentinel.md](../perf-sentinel.md), section `What makes a span usable`.
 
-- [ ] **SQL text.** otelpgx and the GORM plugin set the statement text on the span, otelsql does unless `WithDisableSQLStatementInAttributes()` is set. The attribute name depends on the release (`db.statement` or `db.query.text`), Perf Sentinel reads both. The docs do not name it, check the capture. pgx sends `$1` placeholders, which Perf Sentinel normalizes.
+- [ ] **SQL text.** otelsql documents `db.query.text` and records it by default, `otelsql.WithSpanOptions(otelsql.SpanOptions{DisableQuery: true})` suppresses it, so never set that. otelpgx records the statement too, and its `WithDisableSQLStatementInAttributes()` option turns that off, so never set it either. The GORM plugin's docs name `db.statement` while its source sets `db.query.text`, so check the capture for that one. Perf Sentinel reads both names. pgx sends `$1` placeholders, which Perf Sentinel normalizes.
 - [ ] **GORM variables.** `tracing.WithoutQueryVariables()` keeps the values out of the text. Leave it off in tests, so distinct parameters stay visible. The default plugin also records metrics, `tracing.WithoutMetrics()` turns them off.
 - [ ] **Outbound HTTP.** Only calls made through a client whose transport is wrapped with `otelhttp.NewTransport` are traced. A bare `http.DefaultClient` is invisible.
 - [ ] **`http.route`.** otelhttp's span name formatter sees the request `Pattern` when the router (`http.ServeMux`, or a middleware that sets it) provides one. Whether the `http.route` attribute is set depends on the router and the release, check a server span.
@@ -61,7 +61,7 @@ Build the tracer provider once, register it globally, instrument the server and 
 - otlptracegrpc, endpoint and TLS variables: https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc
 - otlptracehttp: https://pkg.go.dev/go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp
 - SDK trace, default sampler: https://pkg.go.dev/go.opentelemetry.io/otel/sdk/trace
-- otelsql: https://github.com/XSAM/otelsql
-- otelpgx: https://github.com/exaring/otelpgx
-- GORM OpenTelemetry plugin: https://github.com/go-gorm/opentelemetry
+- otelsql: https://pkg.go.dev/github.com/XSAM/otelsql
+- otelpgx: https://pkg.go.dev/github.com/exaring/otelpgx
+- GORM OpenTelemetry plugin: https://pkg.go.dev/gorm.io/plugin/opentelemetry/tracing
 - Perf Sentinel, Go: https://perf-sentinel.dev/docs/INSTRUMENTATION#go-otelhttp-068--otelpgx-011-otel-sdk-143
