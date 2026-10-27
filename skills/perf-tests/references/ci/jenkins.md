@@ -12,19 +12,55 @@ Status: written from official docs, not yet tried
 ## Wrapping the test step
 
 - [ ] The agent needs the `perf-sentinel` binary before the tests. Install it from the official release with the SHA256 check, as in the `Install` section of [perf-sentinel.md](../perf-sentinel.md). Use the current release tag in an `environment` variable such as `PERF_SENTINEL_VERSION`, never `latest`, and write no number from this file.
-- [ ] The release asset lands in the workspace as `perf-sentinel-linux-amd64`. Rename it to `perf-sentinel`, make it executable, and call it as `./perf-sentinel` in every stage, `capture` included, as Perf Sentinel's template does. `sh` starts in the workspace root, so keep the calls out of a `dir(...)` block or use an absolute path there. Use one form throughout, never a bare `perf-sentinel` next to `./perf-sentinel`.
+- [ ] The asset must match the agent architecture: `perf-sentinel-linux-amd64` when `uname -m` prints `x86_64`, `perf-sentinel-linux-arm64` when it prints `aarch64`. The release URL takes the tag with its `v`: `releases/download/v${PERF_SENTINEL_VERSION}`.
+- [ ] Rename the asset to `perf-sentinel`, make it executable, and call it as `./perf-sentinel` in every stage, `capture` included, as Perf Sentinel's template does. Use one form throughout, never a bare `perf-sentinel` next to `./perf-sentinel`.
+- [ ] `sh` starts in the workspace root. When the test command runs inside a `dir(...)` block (a Maven wrapper in a subfolder, for example), a relative path resolves against that folder: write `"$WORKSPACE/perf-sentinel"` and `"$WORKSPACE/$PERF_SENTINEL_TRACES"` there.
+- [ ] Jenkins reuses the workspace between builds of a job, and a checkout does not delete untracked files. Delete the previous binary, capture and reports first, as in the install snippet. Otherwise, when a step fails, the previous build's reports are archived as this build's, and on a pull request build the `fileExists` guard lets the gate run and turn a tooling failure red.
+- [ ] Wrap only the download in `catchError`. Run the checksum check outside it, only when both files arrived: a mismatch must fail the build.
+
+```groovy
+// pipeline level
+environment {
+    PERF_SENTINEL_VERSION = '<current release, without the v>'
+    PERF_SENTINEL_ASSET   = 'perf-sentinel-linux-amd64'   // must match the agent architecture
+    PERF_SENTINEL_TRACES  = 'perf-sentinel-out/traces.ndjson'
+}
+
+stage('Install Perf Sentinel') {
+    steps {
+        // a reused workspace keeps the previous build's files
+        sh 'rm -f perf-sentinel "$PERF_SENTINEL_ASSET" SHA256SUMS.txt "$PERF_SENTINEL_TRACES" results.sarif report.json report.html'
+        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+            sh '''
+                set -eu
+                BASE_URL="https://github.com/Institut-du-Numerique-Responsable/perf-sentinel/releases/download/v${PERF_SENTINEL_VERSION}"
+                curl -sSLf -o "$PERF_SENTINEL_ASSET" "$BASE_URL/$PERF_SENTINEL_ASSET"
+                curl -sSLf -o SHA256SUMS.txt "$BASE_URL/SHA256SUMS.txt"
+            '''
+        }
+        script {
+            if (fileExists(env.PERF_SENTINEL_ASSET) && fileExists('SHA256SUMS.txt')) {
+                sh '''
+                    set -eu
+                    grep "$PERF_SENTINEL_ASSET" SHA256SUMS.txt | sha256sum -c -
+                    mv -f "$PERF_SENTINEL_ASSET" perf-sentinel
+                    chmod +x perf-sentinel
+                    ./perf-sentinel --version
+                '''
+            }
+        }
+    }
+}
+```
+
 - [ ] Prefix the existing test command in its `sh` step with `capture`. Never add a second stage that reruns the suite.
 - [ ] Wrap the `sh` step in `catchError(buildResult: 'FAILURE', stageResult: 'FAILURE')`, as in the snippet. Without it a failing test stops the pipeline before the analyze stage and the report is lost. The build still ends red.
+- [ ] Run the bare test command when the binary is missing, as in the snippet. After a failed download, `capture` would not start, the tests would not run and the build would turn red for a tooling problem.
 - [ ] Set the exporter variables for that step: [perf-sentinel.md](../perf-sentinel.md), section `capture`.
 - [ ] Write the capture file outside the build directory. A `clean` goal (`mvn clean verify`) deletes `target/`, under the listener's feet. Use a folder the build never cleans, such as `perf-sentinel-out/` under the workspace root, and read it from the later stages.
 - [ ] The template pins an agent label (`linux`) because it uses `curl` and `sha256sum`. Keep the agent the test stage already uses.
 
 ```groovy
-// pipeline level, so every stage reads the same path
-environment {
-    PERF_SENTINEL_TRACES = 'perf-sentinel-out/traces.ndjson'
-}
-
 stage('Integration tests') {
     environment {
         OTEL_EXPORTER_OTLP_ENDPOINT = 'http://localhost:4318'
@@ -34,19 +70,27 @@ stage('Integration tests') {
     steps {
         // the build stays red on failing tests, the pipeline goes on to the analyze stage
         catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-            sh './perf-sentinel capture --output "$PERF_SENTINEL_TRACES" -- <existing test command>'
+            // no binary after a failed download: run the tests anyway, the build is already unstable
+            sh '''
+                set -eu
+                if [ -x ./perf-sentinel ]; then
+                    ./perf-sentinel capture --output "$PERF_SENTINEL_TRACES" -- <existing test command>
+                else
+                    <existing test command>
+                fi
+            '''
         }
     }
 }
 ```
 
-`<existing test command>` is a placeholder: keep the command the stage already runs.
+`<existing test command>` is a placeholder: keep the command the stage already runs, the same in both branches.
 
 ## Analyze and archive
 
 - [ ] A report-only stage after the tests, with no `--ci`. Wrap it in `catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE')` so a tooling problem marks the build unstable and never red.
 - [ ] The commands pass `--config .perf-sentinel.toml`. With no such file `analyze` exits 75 and nothing is reported, so create the file first (ask) or drop `--config`, as in `CI wiring` of SKILL.md.
-- [ ] The `sh` step runs `/bin/sh`, which is dash on Debian and Ubuntu and rejects `set -o pipefail`. The block has no pipe, so it uses `set -eu`. If you add a pipe, start the script with `#!/bin/bash` and use `set -euo pipefail`.
+- [ ] The `sh` step runs `/bin/sh`, which is dash on Debian and Ubuntu. Dash rejects `set -o pipefail` with `Illegal option -o pipefail` on Debian 12 and Ubuntu 24.04, and accepts it on Debian 13. The snippets need no `pipefail`, so they use `set -eu`: the analyze block has no pipe, and in the install block `sha256sum -c -` fails on its own when `grep` finds no line. If you add a pipe whose failure matters, start the script with `#!/bin/bash` and use `set -euo pipefail`.
 - [ ] SARIF and JSON from `analyze --format`, HTML from `report`. Write each under a `.tmp` name and rename on success, so a crash leaves no empty file that `fileExists` mistakes for a report.
 - [ ] In `post { always { ... } }`, `archiveArtifacts` the files with `allowEmptyArchive: true`.
 - [ ] The ack file `.perf-sentinel-acknowledgments.toml` is read from the working directory. Run from the workspace root, or pass `--acknowledgments`. Entry template: [perf-sentinel.md](../perf-sentinel.md), section `Acknowledgment entry`.
@@ -82,7 +126,7 @@ The gate is the team's choice. Recommend it on pull request builds only, show th
 - [ ] A dedicated stage that re-runs `./perf-sentinel analyze --ci --input ... --config ...`. Exit `1` fails the stage, `75` is a tooling error: [perf-sentinel.md](../perf-sentinel.md), section `Exit codes`.
 - [ ] Guard it with a `when` block that requires both `env.CHANGE_ID != null` and `fileExists('results.sarif')`, as in the snippet. Branch builds skip it and stay green. The `fileExists` check keeps a tooling failure from showing as a breach.
 - [ ] Warnings NG can add a second check with `qualityGates`. Perf Sentinel's template applies it only when `env.CHANGE_ID != null`, so the post block does not reintroduce blocking on branch builds.
-- [ ] A checksum mismatch must always fail the build. Wrap only the download in `catchError`, never the verification.
+- [ ] A checksum mismatch must always fail the build: the install snippet keeps the verification outside `catchError`.
 - [ ] To block merging, the team makes the Jenkins check required in the branch protection of its SCM. That setting is theirs.
 
 ```groovy
