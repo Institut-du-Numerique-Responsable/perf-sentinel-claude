@@ -6,7 +6,7 @@ compatibility: Needs the perf-sentinel CLI 0.37.0+ signed in to a Perf Sentinel 
 metadata:
   author: Robin Trassard
   repository: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude
-allowed-tools: Bash(perf-sentinel --version) Bash(perf-sentinel hub findings *) Bash(perf-sentinel hub incidents *) Bash(python3 *rank.py *) Bash(git diff *) Bash(git log *)
+allowed-tools: Bash(perf-sentinel --version) Bash(perf-sentinel hub findings *) Bash(perf-sentinel hub incidents *) Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(git diff *) Bash(git log *)
 ---
 
 # Production findings from Perf Sentinel Hub
@@ -40,7 +40,8 @@ Read only. Load `references/hub.md` first.
 - [ ] Run `perf-sentinel --version`.
   - Not found: say the CLI is not installed, and point at the install steps of `../perf-tests/references/perf-sentinel.md` (`Install`, from this skill's base directory). Ask before installing anything.
   - Below 0.37.0: say the CLI lacks `--from`, `--to`, `--offset` and `--include-acked`, so there is no window and no paging. Continue in degraded mode (see `Ranking`) and suggest upgrading.
-- [ ] Run `perf-sentinel hub findings --limit 1 --format json` (add `--hub <URL>` when the user gave one).
+- [ ] Run `perf-sentinel hub findings --environment <env> --limit 1 --format json`, with the environment of `Scope` (`production` unless `$ARGUMENTS` names another one), and `--hub <URL>` when the user gave one.
+  - `400`: this Hub knows no source with that environment, or none the account can see. The match is exact and case-sensitive. Say so, and offer one read without `--environment` (`perf-sentinel hub findings --limit 50 --format json`) to show the environment names the Hub has: from it, list only the distinct `sources[].environment` values, no finding. Then ask which environment to use, and probe again with it.
   - `401`, or a `3xx` asking for a browser session: the terminal is not signed in. Tell the user to run `perf-sentinel login --hub <url>` themselves (it prints a code to approve in a browser signed in to the Hub), and wait until they say it is done. Never run `login` yourself.
   - "This Hub does not offer terminal sign-in": the Hub admin must enable it (`Hub:Auth:TrustedProxyNetworks`).
   - `403`: the account has no access to this project in the Hub. Say to ask the Hub admin, once, without insisting.
@@ -62,17 +63,23 @@ Read only.
 
 Rank nothing by hand. The script does it.
 
-- [ ] For each service in scope, page until exhausted, because the Hub sorts by `last_seen`, not by impact:
-  `perf-sentinel hub findings --environment <env> --status active --service <service> --from <from> --to <to> --include-acked true --limit 1000 --offset <N> --format json`
-  starting at `--offset 0`, adding the `--limit` you sent each time, until a page holds fewer rows than that `--limit`. A `400` means the limit is above the Hub's maximum: page again from `--offset 0` with a smaller `--limit` (`references/hub.md`, `Errors`). Save each page under a fresh `mktemp -d` directory as `page-<service>-<N>.json`.
-- [ ] Run `python3 <this skill's base directory>/scripts/rank.py <dir>/page-*.json`, or on the file of `Arguments`, as a command of its own: no `cd`, no `&&` or `;` with another command, or the permission system refuses it.
-- [ ] The output gives `window`, `excluded_acked` and `groups` in this order, each sorted:
+- [ ] Create one fresh directory with `mktemp -d`, outside the repository. Every page goes there.
+- [ ] For each service in scope, page until exhausted, because the Hub sorts by `last_seen`, not by impact. Save each page straight to a file, in exactly this form:
+  `perf-sentinel hub findings --environment <env> --status active --service <service> --from <from> --to <to> --include-acked true --limit 1000 --offset <N> --format json > <dir>/page-<service>-<N>.json`
+  Never print a page into the conversation, never `cat` or Read one: the ranking script reads them. Start at `--offset 0` and add the `--limit` you sent each time.
+- [ ] After each page, run `python3 ${CLAUDE_SKILL_DIR}/scripts/rank.py <dir>/page-*.json` as a command of its own: no `cd`, no `&&` or `;` with another command, or the permission system refuses it. Its `inputs` lists each file it read with its `rows`. When the entry of the page you just saved holds fewer rows than the `--limit` you sent, that service is done. The run after the last page of the last service is the ranking.
+- [ ] A page command that fails leaves its file empty, and the script refuses an empty file. Rank nothing from that directory: start the read again in a fresh `mktemp -d` directory.
+- [ ] A `400` on a page: the environment passed the probe of `Connection` and the window is never inverted, so the `--limit` is above the Hub's `Hub:MaxReadLimit`. Page every service again once, from `--offset 0` in a fresh directory, with `--limit 100`. A second `400` ends the ranking: report it, and ask for the Hub's `Hub:MaxReadLimit` (`references/hub.md`, `Errors`).
+- [ ] When `duplicates_dropped` is above zero, a Hub poll landed between two pages and a row slid across them: say that a finding may have been missed, and offer one re-read of all the pages in a fresh directory.
+- [ ] With the file of `Arguments`, run the same command on that file alone.
+- [ ] The output gives `inputs`, `window`, `excluded_acked`, `duplicates_dropped` and `groups`, the groups in this order, each sorted:
   1. `avoidable_io` (`n_plus_one_*`, `redundant_*`): by avoidable I/O over the window, extrapolated when sampled. A finding with unknown volume ranks after the known ones, by its per-trace extra I/O.
   2. `slow` (`slow_*`): lock risks first, then by severity, then by detections.
   3. `structural` (fanout, chatty, pool saturation, serialized calls): by severity.
   4. `other`: any type the script does not know, by severity. Never drop it.
 - [ ] Keep that order. Do not re-sort, merge or drop groups. One exception: a slow finding you confirm as a lock risk in the code (see `Presentation`) moves to the top of `slow`.
-- [ ] Degraded mode (CLI below 0.37.0, `--from` refused, or no volume field in the answer, which means a Hub below 0.8.6): read once with `--limit` as high as the Hub allows and no window, rank with the same script, say which minimum version is missing, and say that every volume is unknown. If the page came back full, say the list may be truncated.
+- [ ] Degraded mode, read from the script's output: `window` is `null` while `groups` hold findings, after a read with `--from` and `--to`. The Hub is older than 0.8.6: keep the ranking of the pages already read, say Hub 0.8.6 is missing and that every volume is unknown.
+- [ ] A CLI older than 0.37.0 (seen at `Connection`, or `--from` refused as an unknown flag) cannot page or window: read once per service with `--limit 1000` and no window, saved to a file as above, rank it with the same script, say CLI 0.37.0 is missing and that every volume is unknown. If a page holds as many rows as the `--limit`, say the list may be truncated.
 
 ## Presentation
 
@@ -81,9 +88,9 @@ One line per finding, in rank order, for a developer, an architect or an SRE who
 - [ ] What happens, in one plain sentence ("the lines query runs once per contract").
 - [ ] The volume, with its state and the `window`, from the item's `state`. Give the window as `window.from` to `window.to`, the dates exactly as the output prints them, never shifted or converted.
   - `exact`: the figure as is ("48 200 avoidable I/O operations, exact").
-  - `lower_bound`: "at least" the figure, with each reason from `gaps` in plain words (`references/hub.md`).
+  - `lower_bound`: "at least" the counted figure, with each reason from `gaps` in plain words (`references/hub.md`).
   - `unknown`: "volume unknown", which is not zero. Give `per_trace_extra_io` only as a per-trace figure, never multiplied into a total.
-  - `extrapolated` true: give the counted figure and the estimated one, and say it is extrapolated from a sampling rate of `min_sampling_rate`.
+  - `extrapolated` true: give the counted figure with its wording above, then the estimate as "about N, extrapolated at the lowest sampling rate of the window, `min_sampling_rate` (may overstate if the rate changed during it)". "At least" never applies to the estimate.
   - `avoidable_io` group only, detections known but `avoidable_io_ops` null: say the avoidable I/O is unknown because green scoring is off on a source, and give the detections.
   - Slow, structural and other groups: give the detections. Avoidable I/O does not apply to them, say nothing else about it.
 - [ ] The sources (`sources[].id`), and which ones have no count.

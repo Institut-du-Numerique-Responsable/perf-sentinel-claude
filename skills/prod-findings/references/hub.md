@@ -27,6 +27,8 @@ Link: https://perf-sentinel.dev/docs/CLI#hub-login-logout-hub
 | `perf-sentinel hub unack` | Revokes an acknowledgment | `--source-id <ID>`, `-s/--signature <SIG>` |
 
 - The Hub sorts findings by `last_seen`, not by impact, and cuts at `--limit`. Page with `--offset` until a page is shorter than the limit, then rank locally.
+- A Hub poll that lands between two page reads can move a row across pages. The ranking script keeps one row per signature and counts the others in `duplicates_dropped`. When a row slid the other way, past a page already read, it is missing: rare, and a fresh read from `--offset 0` recovers it.
+- From Hub 0.8.6, `last_seen` follows the daemon's last detection. A fixed finding therefore leaves `--status active` after the 7-day grace, as `likely_resolved` or `not_observed`.
 - Each row holds `finding` (type, severity, service, `source_endpoint`, `signature`, `pattern.template`, `code_location`, `suggestion`, `green_impact.estimated_extra_io_ops`, the extra I/O of one trace), plus `first_seen`, `last_seen`, `status`, `sources` and `acks`.
 - A finding counts as acknowledged in scope when every source carrying it has an entry in `acks`, as the Hub's `include_acked=false` does.
 
@@ -40,7 +42,7 @@ Every error exits 1.
 | `3xx` | The route wants a browser session | Same as `401` |
 | `403` | The account has no access to this project | Ask the Hub admin for access |
 | `404`, `409` | The Hub's own `detail` is printed | Relay it |
-| `400` on a list | `--limit` is above the Hub's maximum (`Hub:MaxReadLimit`, 1 to 10000), which the Hub rejects instead of clamping | Page again from `--offset 0` with a smaller `--limit` |
+| `400` on a list | A bare `400`, with no detail. Three causes: an `--environment` or `--source-id` that matches no source, or none the account can see (exact, case-sensitive match); a window with `from` after `to`; a `--limit` above `Hub:MaxReadLimit` (1 to 10000, default 10000), which the Hub rejects instead of clamping | Environment or source: say the Hub does not know it for this account, and offer a read without it (`--limit 50`) to list the real `sources[].environment` names. Limit: one retry from `--offset 0` with a smaller `--limit`, then report the error if it fails again. Never lower the limit for the other two causes |
 | `503` | "Hub busy, retry" | Retry later |
 | "does not offer terminal sign-in" | Terminal sign-in is off on this Hub | The Hub admin enables `Hub:Auth:TrustedProxyNetworks` |
 | `--from` refused, unknown flag | CLI older than 0.37.0 | Degraded mode, suggest upgrading |
@@ -75,7 +77,7 @@ On each finding only, `detections_from` and `detections_to` (`YYYY-MM-DD`) give 
 | a number with `detections_complete` false | Lower bound | "at least", with the reasons from `detections_gaps` |
 | a number with `detections_complete` true | Exact | the figure as is |
 
-A sampled count can be extrapolated source by source, by dividing by `detections_sampling_rate`. Always say it is extrapolated, and from which rate.
+A sampled count can be extrapolated source by source, by dividing by `detections_sampling_rate`. "At least" applies to the counted figure only. The extrapolated one is "about N, extrapolated at the lowest sampling rate of the window (may overstate if the rate changed during it)": the Hub keeps only the lowest rate of the covered days.
 
 ### Window rule
 
