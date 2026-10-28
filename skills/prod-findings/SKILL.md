@@ -55,7 +55,7 @@ Read only.
 - [ ] Environment: `production`, unless `$ARGUMENTS` names another one.
 - [ ] Status: `active`.
 - [ ] Services: those of the current repository, recognized as in the `Recon` of `perf-tests` (OpenTelemetry `service.name` in the config, the code or the deployment manifests). If none is found, or the user wants a ranking across services, ask which ones.
-- [ ] Window: the last 7 complete UTC days. `--from` is midnight UTC 7 days ago, `--to` is midnight UTC today, both in RFC 3339 (`2026-10-21T00:00:00Z`). The current day is never complete, so it stays out.
+- [ ] Window: the last 7 complete UTC days. `--from` is `<today minus 7 days>T00:00:00Z`, `--to` is `<yesterday>T23:59:59Z`, both RFC 3339 UTC (on 2026-10-28: `--from 2026-10-21T00:00:00Z --to 2026-10-27T23:59:59Z`). The Hub counts whole days up to the day of `--to`, and the current day is never complete, so it stays out.
 - [ ] Acknowledged findings: read with `--include-acked true`, so the script can exclude a finding only when every source carrying it has acknowledged it, and count the ones it left out.
 
 ## Ranking
@@ -64,15 +64,14 @@ Rank nothing by hand. The script does it.
 
 - [ ] For each service in scope, page until exhausted, because the Hub sorts by `last_seen`, not by impact:
   `perf-sentinel hub findings --environment <env> --status active --service <service> --from <from> --to <to> --include-acked true --limit 1000 --offset <N> --format json`
-  starting at `--offset 0`, adding 1000 each time, until a page holds fewer than 1000 rows. Save each page under a fresh `mktemp -d` directory as `page-<service>-<N>.json`.
+  starting at `--offset 0`, adding the `--limit` you sent each time, until a page holds fewer rows than that `--limit`. A `400` means the limit is above the Hub's maximum: page again from `--offset 0` with a smaller `--limit` (`references/hub.md`, `Errors`). Save each page under a fresh `mktemp -d` directory as `page-<service>-<N>.json`.
 - [ ] Run `python3 <this skill's base directory>/scripts/rank.py <dir>/page-*.json`, or on the file of `Arguments`, as a command of its own: no `cd`, no `&&` or `;` with another command, or the permission system refuses it.
-- [ ] Hub reads only: if the output's `window.to` is today's UTC date, the Hub counted the open day: read again with `--to` one second before midnight (`<yesterday>T23:59:59Z`).
 - [ ] The output gives `window`, `excluded_acked` and `groups` in this order, each sorted:
   1. `avoidable_io` (`n_plus_one_*`, `redundant_*`): by avoidable I/O over the window, extrapolated when sampled. A finding with unknown volume ranks after the known ones, by its per-trace extra I/O.
   2. `slow` (`slow_*`): lock risks first, then by severity, then by detections.
   3. `structural` (fanout, chatty, pool saturation, serialized calls): by severity.
   4. `other`: any type the script does not know, by severity. Never drop it.
-- [ ] Keep that order. Do not re-sort, merge or drop groups.
+- [ ] Keep that order. Do not re-sort, merge or drop groups. One exception: a slow finding you confirm as a lock risk in the code (see `Presentation`) moves to the top of `slow`.
 - [ ] Degraded mode (CLI below 0.37.0, `--from` refused, or no volume field in the answer, which means a Hub below 0.8.6): read once with `--limit` as high as the Hub allows and no window, rank with the same script, say which minimum version is missing, and say that every volume is unknown. If the page came back full, say the list may be truncated.
 
 ## Presentation
@@ -89,9 +88,9 @@ One line per finding, in rank order, for a developer, an architect or an SRE who
   - Slow, structural and other groups: give the detections. Avoidable I/O does not apply to them, say nothing else about it.
 - [ ] The sources (`sources[].id`), and which ones have no count.
 - [ ] The code location (`code_location`: function, file, line) and whether that file is in this repository. If it is not, mark it "outside this repository".
-- [ ] For a slow finding, the lock risk. `lock_risk` true means a slow write or a `FOR UPDATE` / `FOR SHARE` read, which can hold locks and block other requests: say so. For a slow read in this repository, check in the code whether it runs inside a transaction that writes, and flag it as a lock risk too when it does.
+- [ ] For a slow finding, the lock risk. `lock_risk` true means a slow write or a `FOR UPDATE` / `FOR SHARE` read, which can hold locks and block other requests: say so. For a slow read in this repository, check in the code whether it runs inside a transaction that writes. When it does, flag it as a lock risk too, move it to the top of the slow group, and say it was moved and why.
 - [ ] When `gaps` holds `multi_instance`, explain it once: several pods behind one Service are read by poll, so the count can never be complete. The remedy is a push from each pod, or one source per pod.
-- [ ] When `excluded_acked` is above zero, say how many findings were left out because every source carrying them acknowledged them, and name each one from the input rows: type, endpoint and the query or call it repeats (`pattern.template`). Do not rank them.
+- [ ] When `excluded_acked` is above zero, say how many findings were left out because every source carrying them acknowledged them, from `excluded_acked` only. Do not rank them.
 - [ ] Add no figure of your own: no total, percentage or saving that is not in the script's output.
 - [ ] Rank only: present the list as one Markdown table per service, rows in rank order, with columns for rank, group, type, what happens, volume (state and window), sources, code location and notes (lock risk, outside this repository). Then stop: say the list is ready to hand to the teams, and change nothing.
 

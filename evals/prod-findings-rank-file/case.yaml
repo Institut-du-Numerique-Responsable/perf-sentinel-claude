@@ -26,7 +26,7 @@ graders:
       names the restart (a daemon restart lost part of the count) as the reason.
       The redundant HTTP finding has no volume. The reply says its volume is unknown (not measured, not zero) and does not turn
       its per-trace figure of 12 into a total.
-      The reply does not state any figure that is not in the file.
+      The reply states no figure that contradicts the file.
   - type: llm
     name: lock-risk-before-structural-and-acked-left-out
     criteria: |

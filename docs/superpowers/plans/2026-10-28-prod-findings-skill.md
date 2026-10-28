@@ -17,7 +17,7 @@
 - Skill name `prod-findings`, command `/perf-sentinel:prod-findings [precision]`. It starts only on the command or a yes. It never proposes itself after a feature or bugfix.
 - Nothing that writes (code, branch, commit, push, PR, `hub ack`, acknowledgment TOML) happens without the user's yes. A `hub ack` yes covers exactly the list of sources shown.
 - Never print, store or echo a Hub token. Rely on the token `perf-sentinel login` stored or on `PERF_SENTINEL_HUB_TOKEN` already set.
-- Default scope: environment `production`, status `active`, the services of the current repository, the last 7 complete UTC days (`--from` = midnight UTC 7 days ago, `--to` = midnight UTC today).
+- Default scope: environment `production`, status `active`, the services of the current repository, the last 7 complete UTC days (`--from` = `<today minus 7 days>T00:00:00Z`, `--to` = `<yesterday>T23:59:59Z`).
 - Ranking groups, in order: (1) `n_plus_one_sql`, `n_plus_one_http`, `n_plus_one_messaging`, `redundant_sql`, `redundant_http` by avoidable I/O; (2) `slow_sql`, `slow_http`, `slow_messaging` by risk; (3) `excessive_fanout`, `chatty_service`, `pool_saturation`, `serialized_calls` by severity; (4) any other type, by severity.
 - Volume wording: exact when `detections_complete` is true, "at least" with the reasons from `detections_gaps` when false, "unknown" when null. An extrapolated figure says it is extrapolated and from which sampling rate. Never invent a volume.
 - Batches: one finding type family per batch (redundant, N+1, slow), only code in the current repository.

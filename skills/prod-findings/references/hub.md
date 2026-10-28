@@ -40,6 +40,7 @@ Every error exits 1.
 | `3xx` | The route wants a browser session | Same as `401` |
 | `403` | The account has no access to this project | Ask the Hub admin for access |
 | `404`, `409` | The Hub's own `detail` is printed | Relay it |
+| `400` on a list | `--limit` is above the Hub's maximum (`Hub:MaxReadLimit`, 1 to 10000), which the Hub rejects instead of clamping | Page again from `--offset 0` with a smaller `--limit` |
 | `503` | "Hub busy, retry" | Retry later |
 | "does not offer terminal sign-in" | Terminal sign-in is off on this Hub | The Hub admin enables `Hub:Auth:TrustedProxyNetworks` |
 | `--from` refused, unknown flag | CLI older than 0.37.0 | Degraded mode, suggest upgrading |

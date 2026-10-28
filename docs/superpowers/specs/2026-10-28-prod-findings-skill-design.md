@@ -100,7 +100,7 @@ Trois groupes, dans cet ordre (*décidé par Robin*) :
 2. **Lents** : gains rapides comme le groupe 1, mais hors du ratio de gaspillage. Ils comptent pourtant : une requête lente peut tenir des verrous en base et provoquer des crashs (*remarque de Robin*). Ils sont donc classés par risque : la sévérité d'abord, puis le nombre de détections. Une écriture lente, ou une requête lente dans une transaction qui écrit, est signalée comme risque de verrou et remonte en tête du groupe. *Mon choix, tiré de cette remarque.*
 3. **Structurels** (fanout, chatty, pool saturation, serialized) : plus longs et plus risqués à traiter, sans impact chiffré. Classés par sévérité.
 
-La période par défaut est les 7 derniers jours complets, jusqu'à hier inclus (`--to` à minuit UTC du jour courant), pour éviter le jour ouvert. *Mon choix.* Un volume incomplet reste classé sur sa valeur, marqué « au moins » avec ses raisons. Si le volume est inconnu (`null` : Hub ou démon trop ancien, jours non couverts), le skill classe le finding dans son groupe par impact par trace et écrit en clair « volume inconnu ». Il n'invente jamais de volume.
+La période par défaut est les 7 derniers jours complets, jusqu'à hier inclus (`--to` à 23:59:59 UTC la veille), pour éviter le jour ouvert. *Mon choix.* Un volume incomplet reste classé sur sa valeur, marqué « au moins » avec ses raisons. Si le volume est inconnu (`null` : Hub ou démon trop ancien, jours non couverts), le skill classe le finding dans son groupe par impact par trace et écrit en clair « volume inconnu ». Il n'invente jamais de volume.
 
 ### 5.4 Présentation
 Pour chaque finding classé, une ligne simple, pensée pour un dev, un architecte ou un SRE qui sait à quoi sert Perf Sentinel sans en connaître les détails :
