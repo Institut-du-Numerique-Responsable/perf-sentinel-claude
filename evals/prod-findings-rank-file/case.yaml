@@ -1,0 +1,43 @@
+schema_version: "1.0"
+name: prod-findings-rank-file
+description: The skill ranks a Hub findings export by avoidable I/O, states what is exact and what is not, and changes nothing.
+tags: [prod-findings, behavior]
+runs: 3
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: /perf-sentinel:prod-findings rank only from hub-findings.json
+  max_turns: 20
+  timeout_seconds: 600
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, "Bash(python3:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
+graders:
+  - type: tool_used
+    name: skill-fired
+    tool: Skill
+    input_match: prod-findings
+  - type: llm
+    name: ranks-by-avoidable-io-with-honest-volumes
+    criteria: |
+      The reply is a ranked list built from hub-findings.json, and the groups come in this order: findings with avoidable I/O,
+      then slow queries, then structural findings.
+      The first finding is the N+1 SQL on ContractService.listForClient (the lines of each contract). Its 48 200 avoidable I/O
+      operations are given as an exact figure (48200 or 48,200), not as "about" or "at least".
+      The redundant SQL finding comes after it. Its 900 avoidable I/O operations are given as "at least" (a lower bound), and the reply
+      names the restart (a daemon restart lost part of the count) as the reason.
+      The redundant HTTP finding has no volume. The reply says its volume is unknown (not measured, not zero) and does not turn
+      its per-trace figure of 12 into a total.
+      The reply does not state any figure that is not in the file.
+  - type: llm
+    name: lock-risk-before-structural-and-acked-left-out
+    criteria: |
+      The slow UPDATE query (on the contract table) is flagged as a lock risk (a write that can hold locks, to look at before pure
+      structural work) and it comes before the serialized_calls finding.
+      The serialized_calls finding, which is critical, comes last in the list.
+      The reply says that one finding was left out because it is acknowledged on its only source (the N+1 HTTP on the documents endpoint),
+      and it does not rank that finding.
+  - type: llm
+    name: read-only-no-ack
+    focus: trace
+    criteria: |
+      The run edits and creates no file, and it runs no perf-sentinel command at all, in particular no "hub ack" or "ack" command.
+      Running python3 on the skill's ranking script, or reading the JSON file, is fine.

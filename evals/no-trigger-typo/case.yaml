@@ -18,6 +18,13 @@ graders:
     min: 0
     max: 0
     arm: both
+  - type: tool_used
+    name: prod-findings-not-started
+    tool: Skill
+    input_match: prod-findings
+    min: 0
+    max: 0
+    arm: both
   - type: llm
     name: handles-only-the-typo
     focus: trace
