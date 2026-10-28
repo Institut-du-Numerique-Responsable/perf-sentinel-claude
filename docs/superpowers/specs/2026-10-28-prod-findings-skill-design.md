@@ -1,6 +1,6 @@
 # Skill `prod-findings` : classer et corriger les findings de prod lus dans le Hub
 
-Date : 2026-10-28. Statut : validé par Robin le 2026-10-28. Le plan attend le contrat des champs de volume (§3).
+Date : 2026-10-28. Statut : validé par Robin le 2026-10-28. Contrat de volume reporté le même jour (§3), d'après la conception du moteur 0.37.0 et du Hub 0.8.6 (`perf-sentinel/docs/superpowers/specs/2026-10-28-finding-detection-volume-design.md`, locale).
 
 ## 1. Intention
 
@@ -51,9 +51,24 @@ Le skill remplace ce détour par la CLI de Perf Sentinel, qui sait déjà se con
 - un compte par source, que le skill additionne sur les sources de prod du périmètre. Un finding vu par plusieurs démons est classé sur la somme. *Mon choix* : c'est le gaspillage total qui compte ;
 - l'échantillonnage du démon pris en compte. Le démon garde ou écarte des traces entières selon un taux (`daemon/sampling.rs`). Le compte doit soit être corrigé de ce taux, soit l'accompagner, pour que le skill extrapole et le dise. Sans l'un ou l'autre, c'est une borne basse, et le skill doit l'afficher comme telle.
 
-Les noms et la forme exacte des champs viendront de cette conception. **Le plan d'implémentation attend ce contrat** : ce document sera mis à jour quand il sera fixé, puis planifié.
+**Le contrat de volume** (moteur 0.37.0, Hub 0.8.6). `GET /api/findings` ne sert ces champs que sur une lecture avec `from` ou `to`. La fenêtre est en jours UTC entiers, de `max(jour(from), jour de coupure de la rétention du Hub)` à `jour(to)`, ou au jour courant du Hub sans `to`. Sur chaque finding et sur chaque élément de `sources[]` :
+- `detections` : entier ou `null`. Au niveau du finding, c'est la somme des sources non nulles, `null` seulement si toutes le sont ;
+- `detections_complete` : booléen ou `null`. Au niveau du finding, `true` seulement si toutes les sources sont non nulles et complètes ;
+- `avoidable_io_ops` : entier ou `null`, la somme exacte des `estimated_extra_io_ops` de chaque détection, `null` si le scoring green est coupé sur une source comptée. **C'est le champ de classement**, pas `detections × green_impact.estimated_extra_io_ops` ;
+- `detections_gaps` : liste triée, dans l'ensemble fermé `uncovered_days`, `open_day`, `restart`, `sampling`, `shed`, `ingest_rejected`, `overflow`, `multi_instance` ;
+- `detections_sampling_rate` : nombre ou `null`, le plus petit taux d'échantillonnage des jours couverts. Le Hub n'extrapole pas.
 
-**Ce qui manque aussi dans la CLI.** `perf-sentinel hub findings` ne transmet pas encore `from`, `to`, `offset`, `include_acked` et `signature`, que le Hub accepte. Sans eux, pas de période, pas d'exclusion des acquittés côté Hub, et pas de pagination : les lignes arrivent triées par `last_seen` et coupées à `--limit`, ce qui fausserait le classement sans le dire. Ces options sont ajoutées à la CLI dans la même release du moteur que le compteur de volume, pour qu'une seule version minimale suffise au skill. *Décidé par Robin.* En attendant, et pour un moteur trop ancien, le skill lit toutes les lignes (`--limit` jusqu'à `Hub:MaxReadLimit`), filtre lui-même, et dit si la liste a pu être tronquée. Le skill vérifie la version de la CLI et dit ce qui lui manque.
+Sur chaque finding seulement, `detections_from` et `detections_to` (`YYYY-MM-DD`) donnent la plage de jours réellement comptée.
+
+Trois états, que le skill affiche tels quels : `null` veut dire inconnu, un nombre avec `detections_complete = false` est une borne basse (ses raisons sont dans `detections_gaps`), un nombre avec `true` est exact. Ce que ça implique pour le skill :
+- le jour courant n'est jamais complet (`open_day`), d'où la période par défaut du §5.3 ;
+- un redémarrage du démon rend son jour incomplet (`restart`) : une semaine qui contient un déploiement donne une borne basse ;
+- plusieurs pods derrière un même Service, lus par poll, ne sont jamais complets (`multi_instance`). Le skill l'explique en une phrase, avec la correction : un push depuis chaque pod, ou une source par pod ;
+- `sampling` : le skill extrapole source par source en divisant par `detections_sampling_rate`, et dit que c'est une extrapolation ;
+- l'unité est un finding émis, une trace peut en produire plusieurs de même signature. Les acquittés comptent dans le Hub, mais le skill les exclut de toute façon (§5.2) ;
+- une source de `sources[]` peut n'avoir que des comptes, avec `producer_version` et `age_seconds` à `null`.
+
+**Ce qui manque aussi dans la CLI.** `perf-sentinel hub findings` ne transmet pas encore `from`, `to`, `offset`, `include_acked` et `signature`, que le Hub accepte. Sans eux, pas de période, pas d'exclusion des acquittés côté Hub, et pas de pagination : les lignes arrivent triées par `last_seen` et coupées à `--limit`, ce qui fausserait le classement sans le dire. Ces options sont ajoutées à la CLI dans la même release du moteur que le compteur de volume, pour qu'une seule version minimale suffise au skill (*décidé par Robin*) : `--from` et `--to` (RFC 3339 UTC ou epoch ms), `--offset`, `--include-acked <true|false>` (omis, le Hub inclut les acquittés) et `--signature`. Le Hub trie toujours par `last_seen` : le skill pagine avec `--offset` jusqu'à épuisement, puis trie lui-même. Versions minimales : CLI 0.37.0, Hub 0.8.6. En attendant, et pour un moteur trop ancien, le skill lit toutes les lignes (`--limit` jusqu'à `Hub:MaxReadLimit`), filtre lui-même, et dit si la liste a pu être tronquée. Le skill vérifie la version de la CLI et dit ce qui lui manque.
 
 **Autres contraintes**
 - Les conventions de la pièce 1 s'appliquent : frontmatter portable, skill et fiches en anglais, réponse dans la langue de l'utilisateur, accord avant chaque écriture, pas de version figée dans les fiches, doc Perf Sentinel citée sur https://perf-sentinel.dev/docs/ et jamais sur le dépôt.
@@ -85,12 +100,12 @@ Trois groupes, dans cet ordre (*décidé par Robin*) :
 2. **Lents** : gains rapides comme le groupe 1, mais hors du ratio de gaspillage. Ils comptent pourtant : une requête lente peut tenir des verrous en base et provoquer des crashs (*remarque de Robin*). Ils sont donc classés par risque : la sévérité d'abord, puis le nombre de détections. Une écriture lente, ou une requête lente dans une transaction qui écrit, est signalée comme risque de verrou et remonte en tête du groupe. *Mon choix, tiré de cette remarque.*
 3. **Structurels** (fanout, chatty, pool saturation, serialized) : plus longs et plus risqués à traiter, sans impact chiffré. Classés par sévérité.
 
-La période par défaut est les 7 derniers jours. *Mon choix.* Si le volume est inconnu pour un finding (prérequis pas encore déployé, démon trop ancien), le skill le classe dans son groupe par impact par trace et écrit en clair « volume inconnu ». Il n'invente jamais de volume.
+La période par défaut est les 7 derniers jours complets, jusqu'à hier inclus (`--to` à minuit UTC du jour courant), pour éviter le jour ouvert. *Mon choix.* Un volume incomplet reste classé sur sa valeur, marqué « au moins » avec ses raisons. Si le volume est inconnu (`null` : Hub ou démon trop ancien, jours non couverts), le skill classe le finding dans son groupe par impact par trace et écrit en clair « volume inconnu ». Il n'invente jamais de volume.
 
 ### 5.4 Présentation
 Pour chaque finding classé, une ligne simple, pensée pour un dev, un architecte ou un SRE qui sait à quoi sert Perf Sentinel sans en connaître les détails :
 - ce qui se passe, en une phrase (« la requête des lignes part une fois par contrat ») ;
-- le volume, sa période et sa source dans le Hub (« 48 200 I/O évitables sur 7 jours, source `prod-eu` ») ;
+- le volume, son état, sa période et ses sources dans le Hub (« au moins 48 200 I/O évitables du 2026-10-21 au 2026-10-27, source `prod-eu`, redémarrage le 24 ») ;
 - l'endroit du code, et s'il est dans le dépôt courant ;
 - pour un lent, s'il présente un risque de verrou en base ;
 - le lien vers le finding dans le Hub, quand l'URL du Hub le permet.
@@ -147,9 +162,6 @@ Ce qui a été classé, corrigé, acquitté, laissé de côté et pourquoi, et c
 - **Pièce 3 (tickets)** : le classement seul pourra alimenter des tickets par équipe.
 
 ## 9. Ce qui reste ouvert
-
-**En attente**
-- Les noms et la forme des champs de volume, fixés par la conception du prérequis côté moteur et Hub.
 
 **Laissé au builder**
 - Le découpage de `SKILL.md` et des fiches.
