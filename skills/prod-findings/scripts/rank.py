@@ -47,7 +47,8 @@ def source_entry(s, gaps):
     rate = s.get("detections_sampling_rate")
     if is_number(rate) and rate <= 0:
         gaps.add("sampling")
-    usable = rate if is_number(rate) and 0 < rate < 1 else None
+    has_counts = s.get("detections") is not None or s.get("avoidable_io_ops") is not None
+    usable = rate if has_counts and is_number(rate) and 0 < rate < 1 else None
     gaps.update(s.get("detections_gaps") or [])
     return {
         "id": s.get("id"), "detections": s.get("detections"), "complete": s.get("detections_complete"),
@@ -73,6 +74,8 @@ def item(row):
     else:
         state = "lower_bound"
     rates = [e["_usable"] for e in entries if e["_usable"] is not None]
+    # Hub contract: a counted source without avoidable I/O makes the finding total unknown, not partial.
+    io_partial = any(e["detections"] is not None and e["_io"] is None for e in entries)
     return {
         "signature": f.get("signature"), "type": f.get("type"), "severity": f.get("severity"),
         "service": f.get("service"), "endpoint": f.get("source_endpoint"),
@@ -80,9 +83,9 @@ def item(row):
         "template": (f.get("pattern") or {}).get("template"),
         "sources": [{k: v for k, v in e.items() if not k.startswith("_")} for e in entries],
         "detections": total(e["detections"] for e in entries),
-        "avoidable_io_ops": total(e["_io"] for e in entries),
+        "avoidable_io_ops": None if io_partial else total(e["_io"] for e in entries),
         "estimated_detections": total(e["estimated"] for e in entries),
-        "estimated_avoidable_io_ops": total(e["_est_io"] for e in entries),
+        "estimated_avoidable_io_ops": None if io_partial else total(e["_est_io"] for e in entries),
         "state": state, "gaps": sorted(gaps), "extrapolated": bool(rates),
         "min_sampling_rate": min(rates) if rates else None,
         "per_trace_extra_io": (f.get("green_impact") or {}).get("estimated_extra_io_ops"),

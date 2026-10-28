@@ -64,6 +64,25 @@ class RankTest(unittest.TestCase):
         self.assertTrue(item["extrapolated"])
         self.assertEqual(item["min_sampling_rate"], 0.1)
 
+    def test_avoidable_io_null_when_a_counted_source_lacks_it(self):
+        r = rank([row("partial", sources=[src("a", detections=5, detections_complete=True, avoidable_io_ops=100),
+                                          src("b", detections=5, detections_complete=True)], per_trace=7),
+                  row("known", sources=[src(detections=1, avoidable_io_ops=10)]),
+                  row("other", per_trace=20)])
+        by = {f["signature"]: f for f in group(r, "avoidable_io")}
+        self.assertIsNone(by["partial"]["avoidable_io_ops"])
+        self.assertIsNone(by["partial"]["estimated_avoidable_io_ops"])
+        self.assertEqual(by["partial"]["state"], "exact")
+        self.assertEqual(sigs(r, "avoidable_io"), ["known", "other", "partial"])
+
+    def test_unused_rate_is_not_extrapolation(self):
+        r = rank([row(sources=[src("a", detections=None, detections_sampling_rate=0.1),
+                               src("b", detections=50, detections_sampling_rate=None)])])
+        item = group(r, "avoidable_io")[0]
+        self.assertFalse(item["extrapolated"])
+        self.assertIsNone(item["min_sampling_rate"])
+        self.assertEqual(item["estimated_detections"], 50)
+
     def test_zero_rate_is_not_divided(self):
         r = rank([row(sources=[src(detections=40, detections_sampling_rate=0)])])
         item = group(r, "avoidable_io")[0]
