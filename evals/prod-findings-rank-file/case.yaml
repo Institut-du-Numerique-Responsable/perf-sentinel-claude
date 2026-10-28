@@ -33,8 +33,8 @@ graders:
       The slow UPDATE query (on the contract table) is flagged as a lock risk (a write that can hold locks, to look at before pure
       structural work) and it comes before the serialized_calls finding.
       The serialized_calls finding, which is critical, comes last in the list.
-      The reply says that one finding was left out because it is acknowledged on its only source (the N+1 HTTP on the documents endpoint),
-      and it does not rank that finding.
+      The reply says that one finding was left out because every source carrying it acknowledged it, and it does not rank that
+      finding. The count alone is enough: the reply need not name which finding it was.
   - type: llm
     name: read-only-no-ack
     focus: trace

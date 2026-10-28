@@ -5,7 +5,7 @@
       "severity": "critical",
       "service": "contracts-api",
       "source_endpoint": "GET /clients/{id}/contracts",
-      "signature": "a1b2c3d4e5f60718293a4b5c6d7e8f90",
+      "signature": "n_plus_one_sql:contracts-api:GET__clients_{id}_contracts:fd60d4aeb7d5997034dac0523f69f734",
       "suggestion": "Load the lines of all contracts with one query (WHERE contract_id IN (...)) or a fetch join.",
       "pattern": {
         "template": "SELECT * FROM contract_line WHERE contract_id = ?"
@@ -38,8 +38,8 @@
     "avoidable_io_ops": 48200,
     "detections_gaps": [],
     "detections_sampling_rate": 1.0,
-    "detections_from": "2026-10-21T00:00:00Z",
-    "detections_to": "2026-10-28T00:00:00Z",
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
     "status": "active"
   },
   {
@@ -48,7 +48,7 @@
       "severity": "warning",
       "service": "contracts-api",
       "source_endpoint": "GET /contracts/{id}",
-      "signature": "b2c3d4e5f60718293a4b5c6d7e8f90a1",
+      "signature": "redundant_sql:contracts-api:GET__contracts_{id}:90e463fafc3a91e271543cc02cf305da",
       "suggestion": "Cache the contract for the duration of the request.",
       "pattern": {
         "template": "SELECT * FROM contract WHERE id = ?"
@@ -85,8 +85,8 @@
       "restart"
     ],
     "detections_sampling_rate": 1.0,
-    "detections_from": "2026-10-21T00:00:00Z",
-    "detections_to": "2026-10-28T00:00:00Z",
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
     "status": "active"
   },
   {
@@ -95,7 +95,7 @@
       "severity": "warning",
       "service": "contracts-api",
       "source_endpoint": "GET /contracts/{id}",
-      "signature": "c3d4e5f60718293a4b5c6d7e8f90a1b2",
+      "signature": "redundant_http:contracts-api:GET__contracts_{id}:6ea3a01f7a7e5d82745ee31853308c61",
       "suggestion": "Fetch the client profile once per request.",
       "pattern": {
         "template": "GET /clients/{id}/profile"
@@ -128,8 +128,8 @@
     "avoidable_io_ops": null,
     "detections_gaps": [],
     "detections_sampling_rate": 1.0,
-    "detections_from": "2026-10-21T00:00:00Z",
-    "detections_to": "2026-10-28T00:00:00Z",
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
     "status": "active"
   },
   {
@@ -138,7 +138,7 @@
       "severity": "warning",
       "service": "contracts-api",
       "source_endpoint": "GET /clients/{id}/contracts",
-      "signature": "d4e5f60718293a4b5c6d7e8f90a1b2c3",
+      "signature": "slow_sql:contracts-api:GET__clients_{id}_contracts:ff6d7d9e5b17f6a42a01e739e0bb448f",
       "suggestion": "Add an index on contract.client_id or batch the update.",
       "pattern": {
         "template": "UPDATE contract SET status = ? WHERE client_id = ?"
@@ -171,8 +171,8 @@
     "avoidable_io_ops": null,
     "detections_gaps": [],
     "detections_sampling_rate": 1.0,
-    "detections_from": "2026-10-21T00:00:00Z",
-    "detections_to": "2026-10-28T00:00:00Z",
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
     "status": "active"
   },
   {
@@ -181,7 +181,7 @@
       "severity": "critical",
       "service": "contracts-api",
       "source_endpoint": "GET /clients/{id}/contracts",
-      "signature": "e5f60718293a4b5c6d7e8f90a1b2c3d4",
+      "signature": "serialized_calls:contracts-api:GET__clients_{id}_contracts:8fd72ed22069b817b0c869a984419b49",
       "suggestion": "Run the independent calls in parallel.",
       "pattern": {
         "template": "GET /clients/{id}/profile ; GET /clients/{id}/balance ; GET /clients/{id}/limits"
@@ -214,8 +214,8 @@
     "avoidable_io_ops": null,
     "detections_gaps": [],
     "detections_sampling_rate": 1.0,
-    "detections_from": "2026-10-21T00:00:00Z",
-    "detections_to": "2026-10-28T00:00:00Z",
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
     "status": "active"
   },
   {
@@ -224,7 +224,7 @@
       "severity": "critical",
       "service": "contracts-api",
       "source_endpoint": "GET /clients/{id}/contracts",
-      "signature": "f60718293a4b5c6d7e8f90a1b2c3d4e5",
+      "signature": "n_plus_one_http:contracts-api:GET__clients_{id}_contracts:cba15797864d5ff7550fc0823d2c551f",
       "suggestion": "Batch the metadata lookups.",
       "pattern": {
         "template": "GET /documents/{id}/meta"
@@ -263,8 +263,8 @@
     "avoidable_io_ops": 25000,
     "detections_gaps": [],
     "detections_sampling_rate": 1.0,
-    "detections_from": "2026-10-21T00:00:00Z",
-    "detections_to": "2026-10-28T00:00:00Z",
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
     "status": "active"
   }
 ]
