@@ -23,7 +23,7 @@ The optional precision narrows what to test, for example a module or an endpoint
 /perf-sentinel:prod-findings [precision]
 ```
 
-This reads the production findings of the current repository's services from Perf Sentinel Hub, through the `perf-sentinel` CLI. Sign in once with `perf-sentinel login --hub <url>`. The skill ranks the findings of the last 7 complete days by avoidable I/O: N+1 and redundant first, then slow ones by risk, then structural ones. It then works in one of two modes:
+This reads the production findings of the current repository's services from Perf Sentinel Hub, through the `perf-sentinel` CLI. Sign in with `perf-sentinel login --hub <url>`: the token lasts up to 8 hours, then sign in again. The skill ranks the findings of the last 7 complete days by avoidable I/O: N+1 and redundant first, then slow ones by risk, then structural ones. It then works in one of two modes:
 
 - Rank only: it stops at the ranking, a table you can hand to the teams. Say "rank only" in the precision.
 - Rank then fix: it proposes batches of one finding type, fixes them on a branch per batch and hands over to `perf-tests` for a non-regression test that proves each fix. It asks before every change, and before acknowledging a finding in the Hub.
@@ -49,7 +49,7 @@ More about the tool at https://perf-sentinel.dev.
 python3 -m unittest scripts/test_check_plugin.py scripts/test_rank.py
 python3 scripts/check_plugin.py .
 claude plugin validate .
-claude plugin eval . --scaffold --trust-plugin --threshold 0.66 --no-publish --judge-model sonnet --allow-tools "Bash(git diff:*)" "Bash(git log:*)" "Bash(git status:*)" "Bash(git merge-base:*)" Write Edit
+claude plugin eval . --scaffold --trust-plugin --threshold 0.66 --no-publish --judge-model sonnet -j 2 --allow-tools "Bash(git diff:*)" "Bash(git log:*)" "Bash(git status:*)" "Bash(git merge-base:*)" "Bash(python3:*)" Write Edit
 ```
 
 Grant `Write` and `Edit` at run level, otherwise the no-edit graders cannot fail. Keep concurrency low (`-j 1` or `-j 2`) to avoid process-limit failures.
