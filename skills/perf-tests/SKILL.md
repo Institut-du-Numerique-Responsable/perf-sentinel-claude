@@ -6,7 +6,7 @@ compatibility: Needs a repository checkout, Docker for database-backed tests, an
 metadata:
   author: Robin Trassard
   repository: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude
-allowed-tools: Bash(git diff *) Bash(git log *) Bash(git merge-base *) Bash(perf-sentinel --version) Bash(perf-sentinel analyze *)
+allowed-tools: Bash(git diff *) Bash(git log *) Bash(git merge-base *) Bash(perf-sentinel --version) Bash(perf-sentinel analyze *) Bash(perf-sentinel hub findings *)
 ---
 
 # Performance integration tests under Perf Sentinel
@@ -30,6 +30,7 @@ Answer in the developer's language. The files you write follow the project's lan
 - If it looks like a ticket and a ticket tool (MCP server or a file in the repo) is available, read the ticket.
 - If no tool can read it, say the ticket content could not be read, and keep the reference for the summary.
 - `bugfix` in the argument, or a ticket that describes an incident, means the bugfix questions and the `Bugfix before/after` step apply.
+- A token shaped like a finding signature (`<finding_type>:<service>:<endpoint>:<hash>`) is a production finding to reproduce, and implies `bugfix`. Read each one with `perf-sentinel hub findings --signature <signature> --format json` (flags, sign-in and errors: `../prod-findings/references/hub.md`). What the row gives (finding, endpoint, conditions) answers the matching bugfix questions: do not ask them again. Without a signed-in CLI, or when the read fails, keep the signature for the summary and ask as usual. Never print or read a Hub token.
 
 ## Recon
 
@@ -63,7 +64,7 @@ Read only. Report what you found in a few lines.
 
 ## Business context
 
-Find answers yourself first: the ticket, the diff, the data model, the fixtures. If a Perf Sentinel Hub MCP tool is available, read the production findings for the touched endpoints. Without it, the step works the same.
+Find answers yourself first: the ticket, the diff, the data model, the fixtures. If the `perf-sentinel` CLI is signed in to a Hub (`perf-sentinel hub findings`, see `../prod-findings/references/hub.md`), read the production findings for the touched endpoints. Without it, the step works the same.
 
 Then ask only what you could not find.
 
@@ -144,7 +145,7 @@ Only for a bugfix. Ask before creating the worktree.
 Only when there are findings. Show the proposed fix and ask before applying it. Load `references/fix-safety.md` before proposing any fix.
 
 - [ ] Start from the finding and the Perf Sentinel suggestion, but do not trust the suggestion blindly.
-- [ ] If a Perf Sentinel Hub MCP tool is available, read the finding history for the endpoint. Without it, the step works the same.
+- [ ] If the CLI is signed in to a Hub, read the finding history for the endpoint with `perf-sentinel hub findings --service <service> --format json`. Without it, the step works the same.
 - [ ] One targeted fix at a time, checked against the Before, Approval, After and Decision lists of `references/fix-safety.md`.
 - [ ] The developer decides whether to keep each fix.
 - [ ] When the developer keeps a finding unfixed, propose the acknowledgment entry ready to paste, from the template in `references/perf-sentinel.md`: signature, reason, reviewer to fill in, and always an `expires_at` date. An entry without a date is permanent.
