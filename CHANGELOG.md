@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `prod-findings` skill: reads production findings from Perf Sentinel Hub through the `perf-sentinel` CLI, ranks them by avoidable I/O (N+1 and redundant first, then slow by risk, then structural), and either stops at the ranking or helps fix them in small batches, each proven by a `perf-tests` non-regression test. It asks before every change, and can rank a JSON file saved from `perf-sentinel hub findings --format json`. It needs the CLI 0.37.0 or later signed in to Hub 0.8.6 or later for volumes, and Python 3. Its eval cases exist, an end-to-end trial does not yet.
+
+### Changed
+
+- `perf-tests` accepts finding signatures (`/perf-sentinel:perf-tests bugfix <signature> …`) and reads them from the Hub when the CLI is signed in.
+- The plugin and marketplace descriptions mention both skills.
+
 ## [0.1.1] - 2026-10-28
 
 ### Changed

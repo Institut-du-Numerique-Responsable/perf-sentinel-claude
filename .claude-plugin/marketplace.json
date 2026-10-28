@@ -1,6 +1,6 @@
 {
   "name": "perf-sentinel",
-  "description": "Performance integration tests checked by Perf Sentinel.",
+  "description": "Performance integration tests and production findings ranking, checked by Perf Sentinel.",
   "owner": {
     "name": "Robin Trassard"
   },
