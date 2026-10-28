@@ -18,8 +18,9 @@ GROUP_OF = {
 }
 SEVERITY = {"critical": 0, "warning": 1, "info": 2}
 LEADING_NOISE = re.compile(r"\A(?:\s+|--[^\n]*|/\*.*?\*/)*", re.DOTALL)
-LOCK_WRITE = re.compile(r"(?:INSERT|UPDATE|DELETE|MERGE|UPSERT)\b")
-LOCK_CLAUSE = re.compile(r"\bFOR\s+(?:UPDATE|SHARE)\b")
+# A write, alone or after a leading WITH ... CTE.
+LOCK_WRITE = re.compile(r"(?:WITH\b.*\)\s*)?(?:INSERT|UPDATE|DELETE|MERGE|UPSERT|REPLACE)\b", re.DOTALL)
+LOCK_CLAUSE = re.compile(r"\bFOR\s+(?:NO\s+KEY\s+)?(?:UPDATE|(?:KEY\s+)?SHARE)\b")
 
 
 def is_number(x):
@@ -109,10 +110,11 @@ def sort_key(group):
 
 
 def rank(rows):
-    seen, excluded, buckets, window = set(), 0, {g: [] for g in GROUPS}, None
+    seen, excluded, dropped, buckets, window = set(), 0, 0, {g: [] for g in GROUPS}, None
     for row in rows:
         sig = (row.get("finding") or {}).get("signature")
         if sig in seen:
+            dropped += 1
             continue
         seen.add(sig)
         if acked(row):
@@ -122,12 +124,12 @@ def rank(rows):
             window = {"from": row["detections_from"], "to": row["detections_to"]}
         it = item(row)
         buckets[GROUP_OF.get(it["type"], "other")].append(it)
-    return {"window": window, "excluded_acked": excluded,
+    return {"window": window, "excluded_acked": excluded, "duplicates_dropped": dropped,
             "groups": [{"name": g, "findings": sorted(buckets[g], key=sort_key(g))} for g in GROUPS]}
 
 
 def main(argv):
-    rows = []
+    rows, inputs = [], []
     for path in argv:
         try:
             with open(path) as fh:
@@ -139,7 +141,8 @@ def main(argv):
             print(f"{path}: not a JSON array", file=sys.stderr)
             return 2
         rows.extend(page)
-    print(json.dumps(rank(rows), indent=2))
+        inputs.append({"file": path, "rows": len(page)})
+    print(json.dumps({"inputs": inputs, **rank(rows)}, indent=2))
     return 0
 
 

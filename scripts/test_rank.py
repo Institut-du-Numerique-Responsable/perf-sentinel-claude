@@ -121,6 +121,10 @@ class RankTest(unittest.TestCase):
         items = group(r, "avoidable_io")
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]["avoidable_io_ops"], 1)
+        self.assertEqual(r["duplicates_dropped"], 1)
+
+    def test_no_duplicate_counts_zero(self):
+        self.assertEqual(rank([row("a"), row("b")])["duplicates_dropped"], 0)
 
     def test_unknown_type_goes_to_other_group(self):
         r = rank([row("w", "blocking_wait")])
@@ -136,6 +140,27 @@ class RankTest(unittest.TestCase):
         self.assertFalse(by["http"]["lock_risk"])
         r = rank([row("fu", "slow_sql", template="SELECT * FROM t FOR UPDATE")])
         self.assertTrue(group(r, "slow")[0]["lock_risk"])
+
+    def test_lock_risk_variants(self):
+        risky = [
+            "SELECT * FROM t WHERE id = ? FOR NO KEY UPDATE",
+            "SELECT * FROM t WHERE id = ? FOR KEY SHARE",
+            "SELECT * FROM t WHERE id = ? FOR SHARE",
+            "WITH c AS (SELECT id FROM t WHERE a = ?) UPDATE t SET b = ? WHERE id IN (SELECT id FROM c)",
+            "WITH c AS (SELECT id FROM t) DELETE FROM t WHERE id IN (SELECT id FROM c)",
+            "WITH c AS (SELECT ?) INSERT INTO t SELECT * FROM c",
+            "WITH c AS (SELECT ?) MERGE INTO t USING c ON t.id = c.id",
+            "REPLACE INTO t (a) VALUES (?)",
+        ]
+        safe = [
+            "WITH c AS (SELECT id FROM t) SELECT * FROM c",
+            "SELECT update_count FROM t",
+            "SELECT * FROM t WHERE (a) = ? ORDER BY updated_at",
+        ]
+        for template in risky + safe:
+            with self.subTest(template=template):
+                r = rank([row("q", "slow_sql", template=template)])
+                self.assertEqual(group(r, "slow")[0]["lock_risk"], template in risky)
 
     def test_no_volume_fields_ranks_by_per_trace_impact(self):
         r = rank([row("low", per_trace=2), row("high", per_trace=9)])
@@ -163,6 +188,16 @@ class RankTest(unittest.TestCase):
             p = subprocess.run([sys.executable, str(RANK), str(a), str(b)], capture_output=True, text=True)
         self.assertEqual(p.returncode, 0)
         self.assertEqual(sorted(f["signature"] for f in json.loads(p.stdout)["groups"][0]["findings"]), ["a", "b"])
+
+    def test_cli_reports_rows_per_input_in_argument_order(self):
+        with tempfile.TemporaryDirectory() as d:
+            a, b = Path(d) / "page-0.json", Path(d) / "page-1000.json"
+            a.write_text(json.dumps([row("a"), row("b")]))
+            b.write_text(json.dumps([row("b")]))
+            p = subprocess.run([sys.executable, str(RANK), str(b), str(a)], capture_output=True, text=True)
+        out = json.loads(p.stdout)
+        self.assertEqual(out["inputs"], [{"file": str(b), "rows": 1}, {"file": str(a), "rows": 2}])
+        self.assertEqual(out["duplicates_dropped"], 1)
 
 
 if __name__ == "__main__":
