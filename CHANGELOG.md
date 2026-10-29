@@ -4,11 +4,11 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.2.0] - 2026-10-29
 
 ### Added
 
-- `prod-findings` skill: reads production findings from Perf Sentinel Hub through the `perf-sentinel` CLI, ranks them by avoidable I/O (N+1 and redundant first, then slow by risk, then structural), and either stops at the ranking or helps fix them in small batches, each proven by a `perf-tests` non-regression test. It asks before every change, and can rank a JSON file saved from `perf-sentinel hub findings --format json`. It needs the CLI 0.37.0 or later signed in to Hub 0.8.6 or later for volumes, and Python 3. Its eval cases exist, an end-to-end trial does not yet.
+- `prod-findings` skill: reads production findings from Perf Sentinel Hub through the `perf-sentinel` CLI, ranks them by avoidable I/O (N+1 and redundant first, then slow by risk, then structural), and either stops at the ranking or helps fix them in small batches, each proven by a `perf-tests` non-regression test. It asks before every change, and can rank a JSON file saved from `perf-sentinel hub findings --format json`. The window defaults to the last 7 complete UTC days and can be given as an argument. It needs the CLI 0.37.0 or later signed in to Hub 0.8.6 or later for volumes, and Python 3. Tried on a local Hub 0.8.6 with perf-sentinel 0.37.1: ranking, lower bounds and the no-volume case.
 
 ### Changed
 
