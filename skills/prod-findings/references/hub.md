@@ -4,7 +4,7 @@ What the skill needs to know to read production findings from a Perf Sentinel Hu
 
 Minimum versions: the `perf-sentinel` CLI 0.37.0 and Perf Sentinel Hub 0.8.6. Older ones still answer, with no window and no volume: every volume is unknown.
 
-The flags of `hub findings` from 0.37.0 (`--from`, `--to`, `--offset`, `--include-acked`, `--signature`) were written from the engine's design, before its release. Check them against `perf-sentinel hub findings --help` before relying on them, and follow the help when it differs.
+The flags below match the `--help` of perf-sentinel 0.37.1. On another version, follow `perf-sentinel hub findings --help` where it differs.
 
 ## Sign-in and credential
 
@@ -41,6 +41,7 @@ Every error exits 1.
 | `401` | No valid token | The user runs `perf-sentinel login --hub <url>` |
 | `3xx` | The route wants a browser session | Same as `401` |
 | `403` | The account has no access to this project | Ask the Hub admin for access |
+| `403` on `hub ack` or `hub unack`, "The Hub does not know who is asking" | The Hub lets anyone read, but an ack is taken in somebody's name and the terminal is not signed in | The user runs `perf-sentinel login --hub <url>`. If the Hub has no sign-in at all, nobody can ack through it: offer the TOML entry instead |
 | `404`, `409` | The Hub's own `detail` is printed | Relay it |
 | `400` on a list | A bare `400`, with no detail. Three causes: an `--environment` or `--source-id` that matches no source, or none the account can see (exact, case-sensitive match); a window with `from` after `to`; a `--limit` above `Hub:MaxReadLimit` (1 to 10000, default 10000), which the Hub rejects instead of clamping | Environment or source: say the Hub does not know it for this account, and offer a read without it (`--limit 50`) to list the real `sources[].environment` names. Limit: one retry from `--offset 0` with a smaller `--limit`, then report the error if it fails again. Never lower the limit for the other two causes |
 | `503` | "Hub busy, retry" | Retry later |
@@ -59,7 +60,7 @@ On each finding and on each `sources[]` entry:
 |-------|-------|
 | `detections` | Integer or `null`. On the finding, the sum of the non-null sources, `null` only when all are |
 | `detections_complete` | Boolean or `null`. On the finding, `true` only when every source is counted and complete |
-| `avoidable_io_ops` | Integer or `null`. The exact sum of each detection's extra I/O, `null` when green scoring is off on a counted source. This is the ranking field, never `detections` times the per-trace figure |
+| `avoidable_io_ops` | Integer or `null`. On a source, the exact sum of each detection's extra I/O, `null` when green scoring is off there. On the finding, the sum over the sources whose I/O is known, so it can be partial even next to `detections_complete: true`: rank from the sources (`rank.py` does). This is the ranking field, never `detections` times the per-trace figure |
 | `detections_gaps` | Sorted list of the reasons below |
 | `detections_sampling_rate` | Number or `null`. The lowest sampling rate of the covered days. The Hub does not extrapolate |
 
@@ -82,6 +83,7 @@ A sampled count can be extrapolated source by source, by dividing by `detections
 ### Window rule
 
 - The window is whole UTC days, from `max(day(from), the Hub's retention cutoff day)` to `day(to)`, or to the Hub's current day without `to`.
+- The window also selects the rows: a finding is listed only when it was seen or counted inside it, so one first seen today is absent from a window that ends yesterday.
 - The current day is never complete (`open_day`).
 - A daemon restart makes its day incomplete (`restart`): a week with a deployment gives a lower bound.
 - Several pods behind one Service read by poll are never complete (`multi_instance`).
@@ -106,3 +108,7 @@ The closed set of `detections_gaps` values. Meanings come from the engine's desi
 - CLI, sign-in and `hub` commands: https://perf-sentinel.dev/docs/CLI#hub-login-logout-hub
 - Acknowledgment workflows, daemon and TOML: https://perf-sentinel.dev/docs/ACK-WORKFLOW
 - Acknowledgment file: https://perf-sentinel.dev/docs/ACKNOWLEDGMENTS
+
+## Lab trial
+
+2026-10-29, a local Hub 0.8.6 polling one perf-sentinel 0.37.1 daemon, with 12 planted N+1 and 9 redundant SQL traces. Covered: the skill, run headless in rank-only mode with a window including today, ranked both findings with the Hub's own figures (12 detections and 60 avoidable I/O, 9 and 18) as lower bounds with `open_day`, `restart` and `uncovered_days`, and saved its page to a file through a redirect without printing it. A read without a window ranks every volume as unknown. Not covered: complete days (the counter seals a day at UTC midnight), an ack under a signed-in identity (the open Hub answers `403`, the sign-in itself is the lab's `hub-access-control`), and a fix handed to `perf-tests`.
