@@ -32,6 +32,7 @@ Answer in the user's language. The files you write follow the project's language
 - [ ] A path to an existing `.json` file (relative to the repository root or absolute, found with Glob or Read, not a shell command) means: rank that file. Skip `Connection` and the Hub calls of `Scope` and `Ranking`, run the ranking script on the file as given, and say in one line that the volumes are the ones of the export.
 - [ ] "Rank only", in any language ("classement seul", "solo ranking"), means: stop after `Presentation`. Nothing is fixed, nothing is acknowledged.
 - [ ] A service, a finding type or an environment replaces the matching default of `Scope`. A Hub URL goes to `--hub`.
+- [ ] A window ("last 30 days", "since 2026-10-01", "including today") replaces the window of `Scope`, still in whole UTC days. A window that reaches today gives lower bounds (`open_day`): say so.
 
 ## Connection
 
@@ -56,7 +57,7 @@ Read only.
 - [ ] Environment: `production`, unless `$ARGUMENTS` names another one.
 - [ ] Status: `active`.
 - [ ] Services: those of the current repository, recognized as in the `Recon` of `perf-tests` (OpenTelemetry `service.name` in the config, the code or the deployment manifests). If none is found, or the user wants a ranking across services, ask which ones.
-- [ ] Window: the last 7 complete UTC days. `--from` is `<today minus 7 days>T00:00:00Z`, `--to` is `<yesterday>T23:59:59Z`, both RFC 3339 UTC (on 2026-10-28: `--from 2026-10-21T00:00:00Z --to 2026-10-27T23:59:59Z`). The Hub counts whole days up to the day of `--to`, and the current day is never complete, so it stays out.
+- [ ] Window: the last 7 complete UTC days. `--from` is `<today minus 7 days>T00:00:00Z`, `--to` is `<yesterday>T23:59:59Z`, both RFC 3339 UTC (on 2026-10-28: `--from 2026-10-21T00:00:00Z --to 2026-10-27T23:59:59Z`). The Hub counts whole days up to the day of `--to`, and the current day is never complete, so it stays out. The window also selects the rows: a finding first seen today is not listed. When the user expects a very recent one, say so and offer the window including today.
 - [ ] Acknowledged findings: read with `--include-acked true`, so the script can exclude a finding only when every source carrying it has acknowledged it, and count the ones it left out.
 
 ## Ranking
