@@ -1,0 +1,270 @@
+[
+  {
+    "finding": {
+      "type": "n_plus_one_sql",
+      "severity": "critical",
+      "service": "contracts-api",
+      "source_endpoint": "GET /clients/{id}/contracts",
+      "signature": "n_plus_one_sql:contracts-api:GET__clients_{id}_contracts:fd60d4aeb7d5997034dac0523f69f734",
+      "suggestion": "Load the lines of all contracts with one query (WHERE contract_id IN (...)) or a fetch join.",
+      "pattern": {
+        "template": "SELECT * FROM contract_line WHERE contract_id = ?"
+      },
+      "code_location": {
+        "filepath": "src/main/java/com/example/contracts/ContractService.java",
+        "function": "ContractService.listForClient",
+        "lineno": 24,
+        "namespace": "com.example.contracts"
+      },
+      "green_impact": {
+        "estimated_extra_io_ops": 24
+      }
+    },
+    "sources": [
+      {
+        "id": "hub-src-1",
+        "name": "contracts-api",
+        "environment": "production",
+        "detections": 1205,
+        "detections_complete": true,
+        "avoidable_io_ops": 48200,
+        "detections_gaps": [],
+        "detections_sampling_rate": 1.0
+      }
+    ],
+    "acks": [],
+    "detections": 1205,
+    "detections_complete": true,
+    "avoidable_io_ops": 48200,
+    "detections_gaps": [],
+    "detections_sampling_rate": 1.0,
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
+    "status": "active"
+  },
+  {
+    "finding": {
+      "type": "redundant_sql",
+      "severity": "warning",
+      "service": "contracts-api",
+      "source_endpoint": "GET /contracts/{id}",
+      "signature": "redundant_sql:contracts-api:GET__contracts_{id}:90e463fafc3a91e271543cc02cf305da",
+      "suggestion": "Cache the contract for the duration of the request.",
+      "pattern": {
+        "template": "SELECT * FROM contract WHERE id = ?"
+      },
+      "code_location": {
+        "filepath": "src/main/java/com/example/contracts/ContractService.java",
+        "function": "ContractService.get",
+        "lineno": 18,
+        "namespace": "com.example.contracts"
+      },
+      "green_impact": {
+        "estimated_extra_io_ops": 3
+      }
+    },
+    "sources": [
+      {
+        "id": "hub-src-1",
+        "name": "contracts-api",
+        "environment": "production",
+        "detections": 60,
+        "detections_complete": false,
+        "avoidable_io_ops": 900,
+        "detections_gaps": [
+          "restart"
+        ],
+        "detections_sampling_rate": 1.0
+      }
+    ],
+    "acks": [],
+    "detections": 60,
+    "detections_complete": false,
+    "avoidable_io_ops": 900,
+    "detections_gaps": [
+      "restart"
+    ],
+    "detections_sampling_rate": 1.0,
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
+    "status": "active"
+  },
+  {
+    "finding": {
+      "type": "redundant_http",
+      "severity": "warning",
+      "service": "contracts-api",
+      "source_endpoint": "GET /contracts/{id}",
+      "signature": "redundant_http:contracts-api:GET__contracts_{id}:6ea3a01f7a7e5d82745ee31853308c61",
+      "suggestion": "Fetch the client profile once per request.",
+      "pattern": {
+        "template": "GET /clients/{id}/profile"
+      },
+      "code_location": {
+        "filepath": "src/main/java/com/example/contracts/ContractController.java",
+        "function": "ContractController.get",
+        "lineno": 18,
+        "namespace": "com.example.contracts"
+      },
+      "green_impact": {
+        "estimated_extra_io_ops": 12
+      }
+    },
+    "sources": [
+      {
+        "id": "hub-src-1",
+        "name": "contracts-api",
+        "environment": "production",
+        "detections": null,
+        "detections_complete": null,
+        "avoidable_io_ops": null,
+        "detections_gaps": [],
+        "detections_sampling_rate": 1.0
+      }
+    ],
+    "acks": [],
+    "detections": null,
+    "detections_complete": null,
+    "avoidable_io_ops": null,
+    "detections_gaps": [],
+    "detections_sampling_rate": 1.0,
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
+    "status": "active"
+  },
+  {
+    "finding": {
+      "type": "slow_sql",
+      "severity": "warning",
+      "service": "contracts-api",
+      "source_endpoint": "GET /clients/{id}/contracts",
+      "signature": "slow_sql:contracts-api:GET__clients_{id}_contracts:ff6d7d9e5b17f6a42a01e739e0bb448f",
+      "suggestion": "Add an index on contract.client_id or batch the update.",
+      "pattern": {
+        "template": "UPDATE contract SET status = ? WHERE client_id = ?"
+      },
+      "code_location": {
+        "filepath": "src/main/java/com/example/contracts/ContractRepository.java",
+        "function": "ContractRepository.findByClientId",
+        "lineno": 7,
+        "namespace": "com.example.contracts"
+      },
+      "green_impact": {
+        "estimated_extra_io_ops": 1
+      }
+    },
+    "sources": [
+      {
+        "id": "hub-src-1",
+        "name": "contracts-api",
+        "environment": "production",
+        "detections": 310,
+        "detections_complete": true,
+        "avoidable_io_ops": null,
+        "detections_gaps": [],
+        "detections_sampling_rate": 1.0
+      }
+    ],
+    "acks": [],
+    "detections": 310,
+    "detections_complete": true,
+    "avoidable_io_ops": null,
+    "detections_gaps": [],
+    "detections_sampling_rate": 1.0,
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
+    "status": "active"
+  },
+  {
+    "finding": {
+      "type": "serialized_calls",
+      "severity": "critical",
+      "service": "contracts-api",
+      "source_endpoint": "GET /clients/{id}/contracts",
+      "signature": "serialized_calls:contracts-api:GET__clients_{id}_contracts:8fd72ed22069b817b0c869a984419b49",
+      "suggestion": "Run the independent calls in parallel.",
+      "pattern": {
+        "template": "GET /clients/{id}/profile ; GET /clients/{id}/balance ; GET /clients/{id}/limits"
+      },
+      "code_location": {
+        "filepath": "src/main/java/com/example/contracts/ContractController.java",
+        "function": "ContractController.listForClient",
+        "lineno": 23,
+        "namespace": "com.example.contracts"
+      },
+      "green_impact": {
+        "estimated_extra_io_ops": 3
+      }
+    },
+    "sources": [
+      {
+        "id": "hub-src-1",
+        "name": "contracts-api",
+        "environment": "production",
+        "detections": 840,
+        "detections_complete": true,
+        "avoidable_io_ops": null,
+        "detections_gaps": [],
+        "detections_sampling_rate": 1.0
+      }
+    ],
+    "acks": [],
+    "detections": 840,
+    "detections_complete": true,
+    "avoidable_io_ops": null,
+    "detections_gaps": [],
+    "detections_sampling_rate": 1.0,
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
+    "status": "active"
+  },
+  {
+    "finding": {
+      "type": "n_plus_one_http",
+      "severity": "critical",
+      "service": "contracts-api",
+      "source_endpoint": "GET /clients/{id}/contracts",
+      "signature": "n_plus_one_http:contracts-api:GET__clients_{id}_contracts:cba15797864d5ff7550fc0823d2c551f",
+      "suggestion": "Batch the metadata lookups.",
+      "pattern": {
+        "template": "GET /documents/{id}/meta"
+      },
+      "code_location": {
+        "filepath": "src/main/java/com/example/contracts/ContractController.java",
+        "function": "ContractController.listForClient",
+        "lineno": 22,
+        "namespace": "com.example.contracts"
+      },
+      "green_impact": {
+        "estimated_extra_io_ops": 50
+      }
+    },
+    "sources": [
+      {
+        "id": "hub-src-1",
+        "name": "contracts-api",
+        "environment": "production",
+        "detections": 500,
+        "detections_complete": true,
+        "avoidable_io_ops": 25000,
+        "detections_gaps": [],
+        "detections_sampling_rate": 1.0
+      }
+    ],
+    "acks": [
+      {
+        "source_id": "hub-src-1",
+        "by": "robin",
+        "reason": "known, fixed in next release"
+      }
+    ],
+    "detections": 500,
+    "detections_complete": true,
+    "avoidable_io_ops": 25000,
+    "detections_gaps": [],
+    "detections_sampling_rate": 1.0,
+    "detections_from": "2026-10-21",
+    "detections_to": "2026-10-27",
+    "status": "active"
+  }
+]

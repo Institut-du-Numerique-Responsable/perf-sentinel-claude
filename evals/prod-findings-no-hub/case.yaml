@@ -1,0 +1,26 @@
+schema_version: "1.0"
+name: prod-findings-no-hub
+description: With no file and no reachable Hub, the skill explains how to get access and invents nothing.
+tags: [prod-findings, behavior, negative]
+runs: 3
+context:
+  scaffold_script: scaffold.sh
+execution:
+  prompt: /perf-sentinel:prod-findings
+  max_turns: 15
+  timeout_seconds: 300
+  allowed_tools: [Read, Glob, Grep, Skill, Write, Edit, "Bash(python3:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git status:*)", "Bash(git merge-base:*)"]
+graders:
+  - type: llm
+    name: explains-access-and-invents-nothing
+    criteria: |
+      There is no findings file and no Hub in this sandbox, and the Perf Sentinel command line is either not installed or its call is refused.
+      The reply says in plain words that it cannot read production findings, and it explains how to get access: install the
+      perf-sentinel CLI, run "perf-sentinel login --hub <url>" (the Hub address is a placeholder), or ask the Hub administrator.
+      The reply lists no finding, no ranking, no endpoint, no query and no volume figure: nothing is invented.
+      It may offer to rank an exported JSON file if the user provides one.
+  - type: llm
+    name: edits-no-file
+    focus: trace
+    criteria: |
+      The run creates or edits no file and does not write any test. Reading files or a refused/failed command is fine.

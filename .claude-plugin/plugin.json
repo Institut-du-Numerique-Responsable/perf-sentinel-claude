@@ -1,7 +1,7 @@
 {
   "name": "perf-sentinel",
   "displayName": "Perf Sentinel",
-  "description": "Writes performance integration tests that surface N+1, redundant and slow I/O before production.",
+  "description": "Writes performance integration tests that surface N+1, redundant and slow I/O before production, and ranks production findings from Perf Sentinel Hub to fix.",
   "author": {
     "name": "Robin Trassard",
     "url": "https://github.com/robintra"
