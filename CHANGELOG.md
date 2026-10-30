@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- Local run modes, from an end-to-end trial on a Spring Boot service: no Intel Mac asset (use Docker), the macOS quarantine attribute on a browser download, an approval per call for a binary called by its path, and the mount to use when the capture file sits outside the repository. The Spring Boot reference records the trial.
+
 ## [0.3.0] - 2026-10-30
 
 ### Added

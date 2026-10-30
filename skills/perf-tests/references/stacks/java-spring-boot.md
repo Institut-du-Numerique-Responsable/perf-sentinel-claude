@@ -2,7 +2,7 @@
 
 Status: tried end-to-end
 
-Tried: Spring Boot 4 with the Java agent the project already ran in production, added to Failsafe, `@SpringBootTest` with a Testcontainers PostgreSQL, Hibernate lazy loading and a Spring Data repository called in a loop. Not tried: the Spring starter, Datasource Micrometer, Spring Boot 3, Gradle, outbound HTTP and messaging findings, the CI job (everything ran locally).
+Tried: Spring Boot 4 with the Java agent the project already ran in production, added to Failsafe, `@SpringBootTest` with a Testcontainers PostgreSQL, Hibernate lazy loading and a Spring Data repository called in a loop. Also tried on 2026-10-30, with plugin 0.3.0 driven from a terminal session on a lab Spring Boot 4 service: the skill wrote the Failsafe and Testcontainers harness, captured through the Docker image 0.38.0 (`docker stop` flush, 145 spans, `usable_span_ratio` 1.0), reported the Hibernate N+1 as `redundant_sql` as described below, rendered the HTML report, handed over the terminal UI command, fixed the query and proved it with `diff` (2 findings resolved, 55 I/O operations down to 2). The binary in a folder gave the same `analyze` and `diff`. Not tried: the Spring starter, Datasource Micrometer, Spring Boot 3, Gradle, outbound HTTP and messaging findings, the CI job (everything ran locally).
 
 ## Recommended instrumentation
 
