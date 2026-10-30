@@ -189,6 +189,8 @@ The download goes to a temporary directory, never to the developer's repository.
 
 Pick the asset that matches the platform from the release page, and use `shasum -a 256 -c -` where `sha256sum` is missing. Never use a third-party mirror. Ask before installing anything.
 
+The release ships `linux-amd64`, `linux-arm64`, `macos-arm64` and `windows-amd64.exe`. An Intel Mac has no asset: offer the Docker image there. On macOS, a binary downloaded with a browser keeps the quarantine attribute and is blocked on its first run: `xattr -d com.apple.quarantine <binary>` clears it. `curl` sets none.
+
 ### Local run modes
 
 On a developer machine there are three ways to run Perf Sentinel. The developer picks one, nothing is installed before that.
@@ -196,7 +198,7 @@ On a developer machine there are three ways to run Perf Sentinel. The developer 
 | Mode | When | How it is called |
 |------|------|------------------|
 | Binary on the `PATH` | Perf Sentinel is used often, on several repositories | `perf-sentinel ...`, installed as in `Install` |
-| Binary in a folder | Nothing goes on the `PATH`, or a version is kept per project | By its path, for example `~/tools/perf-sentinel/perf-sentinel ...`, downloaded and checked as in `Install`. A folder inside the repository must be ignored by git |
+| Binary in a folder | Nothing goes on the `PATH`, or a version is kept per project | By its path, for example `~/tools/perf-sentinel/perf-sentinel ...`, downloaded and checked as in `Install`. A folder inside the repository must be ignored by git. Permission rules match `perf-sentinel ...`, not a path, so each call by path asks for approval: say so, and suggest an allow rule for that path |
 | Docker image | Docker is already there and nothing should be installed | `docker run ... robintrassard/perf-sentinel:<version> ...` (Docker Hub), or `ghcr.io/institut-du-numerique-responsable/perf-sentinel:<version>`. Pin the version, never `latest` |
 
 The config file, in every mode: without `--config`, Perf Sentinel reads `.perf-sentinel.toml` from the directory it runs in, when the file is there. So run it from the repository root, or pass `--config <path>`. With `--config` the file becomes required: a missing one exits 75 instead of falling back to the defaults.
@@ -218,7 +220,7 @@ With Docker, the image holds the binary alone (`FROM scratch`, entrypoint `/perf
   ```
 
   `--listen-address 0.0.0.0` applies inside the container, and the `127.0.0.1:` of `-p` keeps the receiver closed to the network. `docker stop` sends SIGTERM: `capture` keeps listening for its grace (2 s by default), writes the file and exits 0. `docker logs` shows the span count.
-- `analyze`, `report` and `diff` read the repository through a mount, from its root, so `.perf-sentinel.toml` is found:
+- `analyze`, `report` and `diff` read the repository through a mount, from its root, so `.perf-sentinel.toml` is found. When the capture file sits outside the repository, mount a directory that holds both and point `-w` at the repository inside it (`-v <parent>:/work -w /work/<repository>`):
 
   ```bash
   docker run --rm -v "$PWD:/work" -w /work robintrassard/perf-sentinel:<version> \
