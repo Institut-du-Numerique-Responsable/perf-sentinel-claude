@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- `perf-tests` offers three local run modes when the binary is missing: on the `PATH`, in a folder of the developer's choice, or the Docker image (Docker Hub or GHCR), with the background `capture` form Docker needs. Tried with the 0.38.0 image on Docker Desktop for macOS: `docker stop` flushes the capture, `analyze` and the terminal UI run in the container.
+- A local run ends with the command that opens the results in the terminal UI, for the developer to type.
+
 ## [0.2.0] - 2026-10-29
 
 ### Added
