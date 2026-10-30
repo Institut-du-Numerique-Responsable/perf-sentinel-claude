@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - `perf-tests` offers three local run modes when the binary is missing: on the `PATH`, in a folder of the developer's choice, or the Docker image (Docker Hub or GHCR), with the background `capture` form Docker needs. Tried with the 0.38.0 image on Docker Desktop for macOS: `docker stop` flushes the capture, `analyze` and the terminal UI run in the container.
-- A local run ends with the command that opens the results in the terminal UI, for the developer to type.
+- A local run ends by asking how to read the results: the terminal UI command for the developer to type, or the HTML report, which the skill renders after a yes and hands over as a file path. Both tried in the container.
 
 ## [0.2.0] - 2026-10-29
 

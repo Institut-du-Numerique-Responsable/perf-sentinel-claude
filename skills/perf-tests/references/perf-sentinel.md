@@ -156,6 +156,8 @@ perf-sentinel report --input <file> --output <file.html> [--config .perf-sentine
 
 The self-contained HTML dashboard, readable offline. It exits 0 even when the gate fails, the gate shows as a badge. SARIF and JSON come from `analyze --format`, HTML only from `report`.
 
+It is not interactive, so the skill can run it. Write it next to the capture file, outside the build directory, and give the developer its path to open in a browser. With Docker, the output path is inside the mounted repository: `docker run --rm -v "$PWD:/work" -w /work robintrassard/perf-sentinel:<version> report --input <file> --output <file.html>`.
+
 ### diff
 
 ```bash

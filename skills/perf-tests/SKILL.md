@@ -128,7 +128,9 @@ Ask before running anything.
   - a search of the capture file for the diff's table names or endpoint: the queries or calls from the diff must be there.
 
   If the diff's queries are absent, the test is wrong even with zero findings. Say so and fix the test.
-- [ ] End the run with the command that opens the results in the terminal UI, for the developer to type (`inspect` in `references/perf-sentinel.md`). Never run it yourself.
+- [ ] End the run by asking how the developer wants to read the results:
+  - the terminal UI: give the command to type (`inspect` in `references/perf-sentinel.md`), never run it yourself;
+  - the HTML report: after a yes, run `report` (`report` in `references/perf-sentinel.md`) and give the path of the file to open.
 - [ ] If a local run is impossible, say why in one sentence and move on. The CI will do the check.
 
 ## Bugfix before/after
