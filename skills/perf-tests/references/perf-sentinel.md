@@ -156,6 +156,8 @@ perf-sentinel report --input <file> --output <file.html> [--config .perf-sentine
 
 The self-contained HTML dashboard, readable offline. It exits 0 even when the gate fails, the gate shows as a badge. SARIF and JSON come from `analyze --format`, HTML only from `report`.
 
+It is not interactive, so the skill can run it. Write it next to the capture file, outside the build directory, and give the developer its path to open in a browser. With Docker, the output path is inside the mounted repository: `docker run --rm -v "$PWD:/work" -w /work robintrassard/perf-sentinel:<version> report --input <file> --output <file.html>`.
+
 ### diff
 
 ```bash
@@ -167,6 +169,8 @@ The delta between two captures, for pull request regressions. An acknowledged fi
 ### inspect
 
 `perf-sentinel inspect` is an interactive terminal UI. It needs a terminal and exits 1 without one, so never run it from the skill. Use the JSON check above.
+
+The developer can open it on a capture: `perf-sentinel analyze --tui --input <file>` starts on the summary, `Enter` goes down to Inspect then Explain, `Esc` back up, `q` quits. With Docker, add `-it`: `docker run --rm -it -v "$PWD:/work" -w /work robintrassard/perf-sentinel:<version> analyze --tui --input <file>`.
 
 ### Install
 
@@ -181,9 +185,47 @@ grep 'perf-sentinel-linux-amd64' SHA256SUMS.txt | sha256sum -c -
 chmod +x perf-sentinel-linux-amd64
 ```
 
-The download goes to a temporary directory, never to the developer's repository. Ask where to put the binary (a directory on the `PATH`).
+The download goes to a temporary directory, never to the developer's repository. Ask where to put the binary: a directory on the `PATH`, or a folder of the developer's choice (`Local run modes`).
 
 Pick the asset that matches the platform from the release page, and use `shasum -a 256 -c -` where `sha256sum` is missing. Never use a third-party mirror. Ask before installing anything.
+
+### Local run modes
+
+On a developer machine there are three ways to run Perf Sentinel. The developer picks one, nothing is installed before that.
+
+| Mode | When | How it is called |
+|------|------|------------------|
+| Binary on the `PATH` | Perf Sentinel is used often, on several repositories | `perf-sentinel ...`, installed as in `Install` |
+| Binary in a folder | Nothing goes on the `PATH`, or a version is kept per project | By its path, for example `~/tools/perf-sentinel/perf-sentinel ...`, downloaded and checked as in `Install`. A folder inside the repository must be ignored by git |
+| Docker image | Docker is already there and nothing should be installed | `docker run ... robintrassard/perf-sentinel:<version> ...` (Docker Hub), or `ghcr.io/institut-du-numerique-responsable/perf-sentinel:<version>`. Pin the version, never `latest` |
+
+The config file, in every mode: without `--config`, Perf Sentinel reads `.perf-sentinel.toml` from the directory it runs in, when the file is there. So run it from the repository root, or pass `--config <path>`. With `--config` the file becomes required: a missing one exits 75 instead of falling back to the defaults.
+
+With Docker, the image holds the binary alone (`FROM scratch`, entrypoint `/perf-sentinel`, user 65534):
+
+- `capture` only in the background form. `capture -- <test command>` would run the tests inside the empty image. Start the receiver, run the tests on the machine, then stop it:
+
+  ```bash
+  docker run -d --name perf-sentinel-capture \
+    -p 127.0.0.1:4317:4317 -p 127.0.0.1:4318:4318 \
+    -v "$PWD/<capture dir>:/out" \
+    robintrassard/perf-sentinel:<version> \
+    capture --output /out/traces.ndjson --listen-address 0.0.0.0
+  # run the tests, exporting to http://127.0.0.1:4318 with OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+  docker stop perf-sentinel-capture
+  docker logs perf-sentinel-capture
+  docker rm perf-sentinel-capture
+  ```
+
+  `--listen-address 0.0.0.0` applies inside the container, and the `127.0.0.1:` of `-p` keeps the receiver closed to the network. `docker stop` sends SIGTERM: `capture` keeps listening for its grace (2 s by default), writes the file and exits 0. `docker logs` shows the span count.
+- `analyze`, `report` and `diff` read the repository through a mount, from its root, so `.perf-sentinel.toml` is found:
+
+  ```bash
+  docker run --rm -v "$PWD:/work" -w /work robintrassard/perf-sentinel:<version> \
+    analyze --input <capture dir>/traces.ndjson --format json
+  ```
+
+- On Linux, add `--user "$(id -u):$(id -g)"` to both commands, so the container can write the capture file and the developer owns it. Docker Desktop on macOS needs nothing.
 
 Links:
 

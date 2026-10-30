@@ -2,7 +2,7 @@
 name: perf-tests
 description: Writes performance integration tests for the current change and runs them under Perf Sentinel, so N+1 queries and other I/O waste show up before production. Start it only on /perf-sentinel:perf-tests or a yes to your proposal. When the user says a change is done or asks for a review and the diff adds database, HTTP, RPC or messaging calls, finish their request, then propose /perf-sentinel:perf-tests in one short question with the reason from the diff (for example a query issued once per item). Not for UI-only changes or load tests (k6, Gatling, JMeter).
 license: CC-BY-4.0 (see NOTICE)
-compatibility: Needs a repository checkout, Docker for database-backed tests, and the perf-sentinel binary or permission to install it.
+compatibility: Needs a repository checkout, Docker for database-backed tests, and the perf-sentinel binary, its Docker image, or permission to install it.
 metadata:
   author: Robin Trassard
   repository: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude
@@ -119,15 +119,18 @@ Only after the scenarios are validated, and after a yes to create the files.
 Ask before running anything.
 
 - [ ] Check the prerequisites: the `perf-sentinel` binary (`perf-sentinel --version`), Docker if the tests need it, the test command.
-- [ ] If the binary is missing, propose installing it from the official release with checksum verification.
-- [ ] Run only the new tests: `perf-sentinel capture --output <file> -- <filtered test command>`. Write the capture file outside the build directory, since a `clean` step deletes it.
-- [ ] Then `perf-sentinel analyze --input <file>`, with `--config .perf-sentinel.toml` when the project has one.
+- [ ] If the binary is missing, offer the three modes of `Local run modes` in `references/perf-sentinel.md`: binary on the `PATH`, binary in a folder of the developer's choice, or the Docker image when Docker is there. The developer picks. The commands below use the binary, adapt them to the chosen mode.
+- [ ] Run only the new tests: `perf-sentinel capture --output <file> -- <filtered test command>`. Write the capture file outside the build directory, since a `clean` step deletes it. With Docker, use the background form of `Local run modes`.
+- [ ] Then `perf-sentinel analyze --input <file>` from the repository root, so `.perf-sentinel.toml` is read when the project has one.
 - [ ] Check the traces before reading the findings. Run `perf-sentinel analyze --input <file> --format json` and read:
   - `analysis.events_processed` and `analysis.traces_analyzed`: both above zero, otherwise nothing usable was captured
   - the ingest `usable_span_ratio` and the `filtered_missing_db_statement` / `filtered_missing_http_url` counters, when present: spans dropped there lack the SQL text or the URL, so the instrumentation is incomplete
   - a search of the capture file for the diff's table names or endpoint: the queries or calls from the diff must be there.
 
   If the diff's queries are absent, the test is wrong even with zero findings. Say so and fix the test.
+- [ ] End the run by asking how the developer wants to read the results:
+  - the terminal UI: give the command to type (`inspect` in `references/perf-sentinel.md`), never run it yourself;
+  - the HTML report: after a yes, run `report` (`report` in `references/perf-sentinel.md`) and give the path of the file to open.
 - [ ] If a local run is impossible, say why in one sentence and move on. The CI will do the check.
 
 ## Bugfix before/after
