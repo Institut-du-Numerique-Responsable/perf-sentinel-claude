@@ -11,6 +11,31 @@ This plugin adds two skills for [Perf Sentinel](https://perf-sentinel.dev), whic
 /plugin install perf-sentinel@perf-sentinel
 ```
 
+### Updates
+
+Claude Code updates a third-party marketplace only when its auto-update is on, and it is off by default. Turn it on once: run `/plugin`, open **Marketplaces**, select `perf-sentinel`, then **Enable auto-update**. Claude Code then updates the plugin in the background during a session and loads the new version at the next launch or on `/reload-plugins`.
+
+For a whole team, declare the marketplace in the repository's `.claude/settings.json`. Once someone accepts the workspace trust dialog for the folder, Claude Code registers the marketplace with auto-update on and loads the plugin. In an untrusted folder it ignores the entry without a message:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "perf-sentinel": {
+      "source": {
+        "source": "github",
+        "repo": "Institut-du-Numerique-Responsable/perf-sentinel-claude"
+      },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": {
+    "perf-sentinel@perf-sentinel": true
+  }
+}
+```
+
+To update by hand: `claude plugin update perf-sentinel@perf-sentinel`. `claude plugin list` shows the installed version as a 12-character commit, the commit of a release tag.
+
 ## Usage
 
 ```

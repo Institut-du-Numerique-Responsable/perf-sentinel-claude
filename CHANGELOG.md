@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.2] - 2026-10-30
+
+### Added
+
+- README: how to turn on auto-update, which Claude Code leaves off for a third-party marketplace, for one person (`/plugin`, **Marketplaces**) or a whole team (`extraKnownMarketplaces` with `autoUpdate` in the repository's `.claude/settings.json`), and how to read the installed version.
+
 ## [0.3.1] - 2026-10-30
 
 ### Changed
