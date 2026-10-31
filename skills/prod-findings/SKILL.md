@@ -6,7 +6,7 @@ compatibility: Needs the perf-sentinel CLI 0.37.0+ signed in to a Perf Sentinel 
 metadata:
   author: Robin Trassard
   repository: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude
-allowed-tools: Bash(perf-sentinel --version) Bash(perf-sentinel hub findings *) Bash(perf-sentinel hub incidents *) Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(git diff *) Bash(git log *)
+allowed-tools: Bash(perf-sentinel --version) Bash(perf-sentinel hub findings *) Bash(perf-sentinel hub incidents *) Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(python ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(git diff *) Bash(git log *)
 ---
 
 # Production findings from Perf Sentinel Hub
@@ -64,11 +64,11 @@ Read only.
 
 Rank nothing by hand. The script does it.
 
-- [ ] Create one fresh directory with `mktemp -d`, outside the repository. Every page goes there.
+- [ ] Create one fresh directory with `mktemp -d`, outside the repository. Every page goes there. On Windows, Claude Code treats the temporary directory as outside the session, so the first page write asks for approval: say so before it, and say the user can add the directory to the session to avoid the next ones.
 - [ ] For each service in scope, page until exhausted, because the Hub sorts by `last_seen`, not by impact. Save each page straight to a file, in exactly this form:
   `perf-sentinel hub findings --environment <env> --status active --service <service> --from <from> --to <to> --include-acked true --limit 1000 --offset <N> --format json > <dir>/page-<service>-<N>.json`
   Never print a page into the conversation, never `cat` or Read one: the ranking script reads them. Start at `--offset 0` and add the `--limit` you sent each time.
-- [ ] After each page, run `python3 ${CLAUDE_SKILL_DIR}/scripts/rank.py <dir>/page-*.json` as a command of its own: no `cd`, no `&&` or `;` with another command, or the permission system refuses it. Its `inputs` lists each file it read with its `rows`. When the entry of the page you just saved holds fewer rows than the `--limit` you sent, that service is done. The run after the last page of the last service is the ranking.
+- [ ] After each page, run `python3 ${CLAUDE_SKILL_DIR}/scripts/rank.py <dir>/page-*.json` as a command of its own: no `cd`, no `&&` or `;` with another command, or the permission system refuses it. When `python3` is missing, or on Windows answers "Python was not found" (the Microsoft Store alias, exit 49), run the same command with `python`, then `py -3`. Its `inputs` lists each file it read with its `rows`. When the entry of the page you just saved holds fewer rows than the `--limit` you sent, that service is done. The run after the last page of the last service is the ranking.
 - [ ] A page command that fails leaves its file empty, and the script refuses an empty file. Rank nothing from that directory: start the read again in a fresh `mktemp -d` directory.
 - [ ] A `400` on a page: the environment passed the probe of `Connection` and the window is never inverted, so the `--limit` is above the Hub's `Hub:MaxReadLimit`. Page every service again once, from `--offset 0` in a fresh directory, with `--limit 100`. A second `400` ends the ranking: report it, and ask for the Hub's `Hub:MaxReadLimit` (`references/hub.md`, `Errors`).
 - [ ] When `duplicates_dropped` is above zero, a Hub poll landed between two pages and a row slid across them: say that a finding may have been missed, and offer one re-read of all the pages in a fresh directory.
