@@ -2,7 +2,7 @@
 
 Status: tried end-to-end
 
-Tried: Spring Boot 4 with the Java agent the project already ran in production, added to Failsafe, `@SpringBootTest` with a Testcontainers PostgreSQL, Hibernate lazy loading and a Spring Data repository called in a loop. Also tried on 2026-10-30, with plugin 0.3.0 driven from a terminal session on a lab Spring Boot 4 service: the skill wrote the Failsafe and Testcontainers harness, captured through the Docker image 0.38.0 (`docker stop` flush, 145 spans, `usable_span_ratio` 1.0), reported the Hibernate N+1 as `redundant_sql` as described below, rendered the HTML report, handed over the terminal UI command, fixed the query and proved it with `diff` (2 findings resolved, 55 I/O operations down to 2). The binary in a folder gave the same `analyze` and `diff`. Not tried: the Spring starter, Datasource Micrometer, Spring Boot 3, Gradle, outbound HTTP and messaging findings, the CI job (everything ran locally).
+Tried: Spring Boot 4 with the Java agent the project already ran in production, added to Failsafe, `@SpringBootTest` with a Testcontainers PostgreSQL, Hibernate lazy loading and a Spring Data repository called in a loop. Also tried on 2026-10-30, with plugin 0.3.0 driven from a terminal session on a lab Spring Boot 4 service: the skill wrote the Failsafe and Testcontainers harness, captured through the Docker image 0.38.0 (`docker stop` flush, 145 spans, `usable_span_ratio` 1.0), reported the Hibernate N+1 as `redundant_sql` as described below, rendered the HTML report, handed over the terminal UI command, fixed the query and proved it with `diff` (2 findings resolved, 55 I/O operations down to 2). The binary in a folder gave the same `analyze` and `diff`. Also tried on 2026-10-31 on Windows 11, with plugin 0.3.2 and the 0.39.0 image and `windows-amd64.exe`: same flow and same findings (127 spans, `/api/orders` from 51 queries to 1), after the Git Bash path rewrite and the `mvnw.cmd` wrap noted in `perf-sentinel.md`. Not tried: the Spring starter, Datasource Micrometer, Spring Boot 3, Gradle, outbound HTTP and messaging findings, the CI job (everything ran locally).
 
 ## Recommended instrumentation
 
@@ -71,6 +71,7 @@ Agent (Boot 3, or a project that already uses it):
 
 - Maven: `perf-sentinel capture --output <file outside target/> -- mvn verify`. Gradle: wrap `./gradlew integrationTest` (or the project's task) the same way.
 - Use the project's wrapper and run it from the directory that holds it. In a repository with the Maven build in a subdirectory, `./mvnw` at the repository root does not exist.
+- On Windows, wrap `mvnw.cmd` (or `gradlew.bat`) with `capture --`: the binary cannot start the `./mvnw` shell script.
 - To run one Failsafe class in a multi-module build: `-pl <module> -am verify -Dit.test=<Class>IT -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false -Dfailsafe.failIfNoSpecifiedTests=false`. Without the two `false` flags, every module with no matching class fails the build.
 - A starter export is batched: use a longer `--grace-ms` than the default, for example 3000, so the last test's spans flush.
 - Starter, HTTP/protobuf: endpoint `http://localhost:4318/v1/traces`. Agent: match `OTEL_EXPORTER_OTLP_PROTOCOL` and the port.

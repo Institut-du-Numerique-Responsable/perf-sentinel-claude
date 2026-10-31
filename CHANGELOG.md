@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixed
+
+- Windows, from an end-to-end trial of both skills on Windows 11: `capture --` wraps `mvnw.cmd` or `gradlew.bat`, since the binary cannot start `./mvnw` (`os error 193`). In Git Bash, `docker run` needs `MSYS_NO_PATHCONV=1` and a `C:/...` mount source, or the capture path is rewritten and nothing is written. `prod-findings` falls back to `python` then `py -3` when `python3` is the Microsoft Store alias, and warns that the page write asks for approval. The terminal UI container is quit with `q`, not by closing the terminal.
+
 ## [0.3.2] - 2026-10-30
 
 ### Added

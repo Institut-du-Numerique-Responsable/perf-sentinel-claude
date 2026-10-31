@@ -119,6 +119,7 @@ perf-sentinel capture --output <file outside the build dir> -- <test command>
 | `--grace-ms` | `2000` | Time kept listening after the command exits, for the exporter's last flush |
 
 - The command after `--` runs directly, not through a shell. Put a pipeline or an `&&` chain in a script and wrap the script.
+- On Windows the command must be an `.exe`, `.cmd` or `.bat`: wrap `mvnw.cmd` or `gradlew.bat`, never `./mvnw` or `./gradlew`. A shell script fails with `os error 193` and nothing is captured, even from Git Bash.
 - The ports are bound before the command starts. Progress and the final count go to stderr, which tells "nothing was exported" from "no anti-patterns".
 - Background form, only when the pipeline owns the test command and it cannot be prefixed: `perf-sentinel capture --output <file> &`, keep the pid, run the tests, then `kill -TERM $pid && wait $pid`.
 - Application side: set `OTEL_EXPORTER_OTLP_ENDPOINT` and also an explicit `OTEL_EXPORTER_OTLP_PROTOCOL`. SDKs disagree on their default, and an endpoint aimed at the wrong protocol exports nothing without saying so. `grpc` goes to port 4317, `http/protobuf` to port 4318. Sample at 100%.
@@ -170,7 +171,7 @@ The delta between two captures, for pull request regressions. An acknowledged fi
 
 `perf-sentinel inspect` is an interactive terminal UI. It needs a terminal and exits 1 without one, so never run it from the skill. Use the JSON check above.
 
-The developer can open it on a capture: `perf-sentinel analyze --tui --input <file>` starts on the summary, `Enter` goes down to Inspect then Explain, `Esc` back up, `q` quits. With Docker, add `-it`: `docker run --rm -it -v "$PWD:/work" -w /work robintrassard/perf-sentinel:<version> analyze --tui --input <file>`.
+The developer can open it on a capture: `perf-sentinel analyze --tui --input <file>` starts on the summary, `Enter` goes down to Inspect then Explain, `Esc` back up, `q` quits. With Docker, add `-it`: `docker run --rm -it -v "$PWD:/work" -w /work robintrassard/perf-sentinel:<version> analyze --tui --input <file>`. Quit with `q`: closing the terminal instead can leave the container running, and `docker ps` then `docker rm -f <name>` stops it.
 
 ### Install
 
@@ -189,7 +190,7 @@ The download goes to a temporary directory, never to the developer's repository.
 
 Pick the asset that matches the platform from the release page, and use `shasum -a 256 -c -` where `sha256sum` is missing. Never use a third-party mirror. Ask before installing anything.
 
-The release ships `linux-amd64`, `linux-arm64`, `macos-arm64` and `windows-amd64.exe`. An Intel Mac has no asset: offer the Docker image there. On macOS, a binary downloaded with a browser keeps the quarantine attribute and is blocked on its first run: `xattr -d com.apple.quarantine <binary>` clears it. `curl` sets none.
+The release ships `linux-amd64`, `linux-arm64`, `macos-arm64` and `windows-amd64.exe`. An Intel Mac has no asset: offer the Docker image there. On macOS, a binary downloaded with a browser keeps the quarantine attribute and is blocked on its first run: `xattr -d com.apple.quarantine <binary>` clears it. `curl` sets none. On Windows, the same `curl` and `sha256sum -c -` lines work in Git Bash, and the `.exe` needs no `chmod`.
 
 ### Local run modes
 
@@ -228,6 +229,7 @@ With Docker, the image holds the binary alone (`FROM scratch`, entrypoint `/perf
   ```
 
 - On Linux, add `--user "$(id -u):$(id -g)"` to both commands, so the container can write the capture file and the developer owns it. Docker Desktop on macOS needs nothing.
+- On Windows with Git Bash, prefix each `docker run` with `MSYS_NO_PATHCONV=1` and give the mount source as a Windows path (`C:/...`, what `pwd -W` prints). Without the prefix, Git Bash rewrites `/out/traces.ndjson` into `C:/Program Files/Git/out/...` and `capture` cannot write its file. An allow rule for `docker` does not cover the prefixed form, so expect an approval for each call. PowerShell rewrites nothing: `-v "${PWD}:/work"` works there as is.
 
 Links:
 
