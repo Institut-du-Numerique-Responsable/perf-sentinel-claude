@@ -45,7 +45,7 @@ Defaults, evaluated per trace. Each threshold is a key of `[detection]` in `.per
 
 What this means when sizing a test:
 
-- The N+1 floor is 5 distinct values and the critical tier is 10. A test with 3 children never fires. The goal is the production shape, so the data volume comes from the developer's production numbers and 5 is only the floor.
+- The N+1 floor is 5 distinct values and the critical tier is 10. A test with 3 children never fires. Size the test at the tier you want caught, usually 10 for the gate, and no higher: more rows add CI time, not detection.
 - The 500 ms window is measured on the trace. A fast local database stays well inside it. A loop slowed by a throttled test environment can fall outside it and be missed.
 - A Warning N+1 (5 to 9 occurrences) does not fail the default gate. Only a critical one (10 or more) trips `n_plus_one_sql_critical_max = 0`, besides the waste ratio. See `Gate defaults`.
 - N+1 counts distinct parameter values. Same-parameter repeats are `redundant_*`, not N+1.

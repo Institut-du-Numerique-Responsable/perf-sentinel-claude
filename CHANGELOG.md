@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- `perf-tests` sizes each scenario at the detector threshold that catches the defect, 10 occurrences for a critical N+1, instead of the production volume. A finding needs nothing more, and larger data sets only slow the CI.
+
 ## [0.3.3] - 2026-10-31
 
 ### Fixed
