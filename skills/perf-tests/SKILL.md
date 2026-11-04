@@ -86,7 +86,7 @@ Then ask only what you could not find.
 
 - [ ] Show a short list before writing a single line of test. Format: endpoint, then the data shape. Example: `GET /clients/{id}/contracts`, a client with 200 contracts of 15 lines each.
 - [ ] With several services, one list per service inside that service's section, headed by the service name and its stack, with its own planned capture run.
-- [ ] Perf Sentinel minimums are a floor, not a target: 5 occurrences of the same query for an N+1, 10 for a critical one. The volume comes from the developer's answers. Thresholds per detector are in `references/perf-sentinel.md`.
+- [ ] Size each scenario at the Perf Sentinel threshold that catches the defect, and no higher: 10 occurrences of the same query for an N+1, the critical tier, the only one the default gate counts. A finding needs nothing more, and every row above it slows the CI on each run. Use 5 only when the team reads warnings too. Production volumes matter only when the defect depends on them, for example a batch boundary. Thresholds per detector are in `references/perf-sentinel.md`.
 - [ ] If the main risk is concurrent load rather than the work done by one request, say so and point to a load testing tool. This skill does not do load tests.
 - [ ] Stop and wait for the developer to validate or correct the list.
 
@@ -112,7 +112,7 @@ Only after the scenarios are validated, and after a yes to create the files.
 - [ ] Call the entry point the way a real client does (HTTP request, published message, job trigger), not internal classes.
 - [ ] Assert the business result too. The test must stay true after a fix.
 - [ ] The tests run in CI. Never skip or disable them on a CI environment variable.
-- [ ] Keep the smallest data set that reproduces the production shape: 200 contracts if the biggest client has 200, not 10,000 clients. Reuse the existing containers and fixtures. If a test takes more than one minute locally, say so and propose a smaller data set.
+- [ ] Keep the smallest data set that crosses the detector threshold: 10 contracts to catch an N+1 on contract lines, even if the biggest client has 200. Reuse the existing containers and fixtures. If a test takes more than one minute locally, say so and propose a smaller data set.
 
 ## Local run
 
