@@ -1,5 +1,10 @@
 # Perf Sentinel plugin for Claude Code
 
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-plugin-CC785C?logo=claude&logoColor=white)](https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude)
+[![Skills](https://img.shields.io/badge/skills-2-orange)]()
+[![Python](https://img.shields.io/badge/Python-3-3776AB?logo=python&logoColor=white)](scripts/)
+[![Licence](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+
 This plugin adds two skills for [Perf Sentinel](https://perf-sentinel.dev), which flags N+1, redundant and slow I/O.
 `perf-tests` writes performance integration tests for your current change, so the waste is caught before production. It works from the diff, picks the instrumentation for your stack and wires the check into your CI.
 `prod-findings` reads the findings of your production services from Perf Sentinel Hub, ranks them by avoidable I/O and helps fix them.
