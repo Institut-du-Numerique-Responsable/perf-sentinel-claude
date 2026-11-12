@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Both skills compare the local `perf-sentinel` version, binary or Docker image tag, with the latest GitHub release, and offer the upgrade when it is behind. An offline check never blocks.
+
 ## [0.3.4] - 2026-11-04
 
 ### Changed

@@ -6,7 +6,7 @@ compatibility: Needs a repository checkout, Docker for database-backed tests, an
 metadata:
   author: Robin Trassard
   repository: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude
-allowed-tools: Bash(git diff *) Bash(git log *) Bash(git merge-base *) Bash(perf-sentinel --version) Bash(perf-sentinel analyze *) Bash(perf-sentinel hub findings *)
+allowed-tools: Bash(git diff *) Bash(git log *) Bash(git merge-base *) Bash(perf-sentinel --version) Bash(curl -sSf https://api.github.com/repos/Institut-du-Numerique-Responsable/perf-sentinel/releases/latest) Bash(perf-sentinel analyze *) Bash(perf-sentinel hub findings *)
 ---
 
 # Performance integration tests under Perf Sentinel
@@ -119,6 +119,7 @@ Only after the scenarios are validated, and after a yes to create the files.
 Ask before running anything.
 
 - [ ] Check the prerequisites: the `perf-sentinel` binary (`perf-sentinel --version`), Docker if the tests need it, the test command.
+- [ ] If the binary or image is there, check it is the latest release, as in `Version check` in `references/perf-sentinel.md`.
 - [ ] If the binary is missing, offer the three modes of `Local run modes` in `references/perf-sentinel.md`: binary on the `PATH`, binary in a folder of the developer's choice, or the Docker image when Docker is there. The developer picks. The commands below use the binary, adapt them to the chosen mode.
 - [ ] Run only the new tests: `perf-sentinel capture --output <file> -- <filtered test command>`. Write the capture file outside the build directory, since a `clean` step deletes it. With Docker, use the background form of `Local run modes`.
 - [ ] Then `perf-sentinel analyze --input <file>` from the repository root, so `.perf-sentinel.toml` is read when the project has one.

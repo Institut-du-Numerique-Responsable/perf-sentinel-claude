@@ -192,6 +192,21 @@ Pick the asset that matches the platform from the release page, and use `shasum 
 
 The release ships `linux-amd64`, `linux-arm64`, `macos-arm64` and `windows-amd64.exe`. An Intel Mac has no asset: offer the Docker image there. On macOS, a binary downloaded with a browser keeps the quarantine attribute and is blocked on its first run: `xattr -d com.apple.quarantine <binary>` clears it. `curl` sets none. On Windows, the same `curl` and `sha256sum -c -` lines work in Git Bash, and the `.exe` needs no `chmod`.
 
+### Version check
+
+Compare the local version with the latest official release before using it:
+
+```bash
+perf-sentinel --version
+curl -sSf https://api.github.com/repos/Institut-du-Numerique-Responsable/perf-sentinel/releases/latest
+```
+
+The release's `tag_name` carries a `v` (`v1.2.3`), `--version` prints the number without it. With Docker, the local version is the image tag in use. With a binary in a folder, call it by its path.
+
+- Same version: go on.
+- Older: say which version is installed and which is the latest, and offer the upgrade (`Install` with the new release, or the new image tag). Ask before installing anything. If the developer declines, go on with the local version.
+- The request fails (offline, rate limit, refused by the permission system): say the latest version could not be checked, and go on. Never block on it.
+
 ### Local run modes
 
 On a developer machine there are three ways to run Perf Sentinel. The developer picks one, nothing is installed before that.
