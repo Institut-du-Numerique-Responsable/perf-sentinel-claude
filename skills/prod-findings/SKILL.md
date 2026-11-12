@@ -6,7 +6,7 @@ compatibility: Needs the perf-sentinel CLI 0.37.0+ signed in to a Perf Sentinel 
 metadata:
   author: Robin Trassard
   repository: https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude
-allowed-tools: Bash(perf-sentinel --version) Bash(perf-sentinel hub findings *) Bash(perf-sentinel hub incidents *) Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(python ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(git diff *) Bash(git log *)
+allowed-tools: Bash(perf-sentinel --version) Bash(curl -sSf https://api.github.com/repos/Institut-du-Numerique-Responsable/perf-sentinel/releases/latest) Bash(perf-sentinel hub findings *) Bash(perf-sentinel hub incidents *) Bash(python3 ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(python ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(py -3 ${CLAUDE_SKILL_DIR}/scripts/rank.py *) Bash(git diff *) Bash(git log *)
 ---
 
 # Production findings from Perf Sentinel Hub
@@ -41,6 +41,7 @@ Read only. Load `references/hub.md` first.
 - [ ] Run `perf-sentinel --version`.
   - Not found: say the CLI is not installed, and point at the install steps of `../perf-tests/references/perf-sentinel.md` (`Install`, from this skill's base directory). Ask before installing anything.
   - Below 0.37.0: say the CLI lacks `--from`, `--to`, `--offset` and `--include-acked`, so there is no window and no paging. Continue in degraded mode (see `Ranking`) and suggest upgrading.
+  - Otherwise: check it is the latest release, as in `Version check` of `../perf-tests/references/perf-sentinel.md`.
 - [ ] Run `perf-sentinel hub findings --environment <env> --limit 1 --format json`, with the environment of `Scope` (`production` unless `$ARGUMENTS` names another one), and `--hub <URL>` when the user gave one.
   - `400`: this Hub knows no source with that environment, or none the account can see. The match is exact and case-sensitive. Say so, and offer one read without `--environment` (`perf-sentinel hub findings --limit 50 --format json`) to show the environment names the Hub has: from it, list only the distinct `sources[].environment` values, no finding. Then ask which environment to use, and probe again with it.
   - `401`, or a `3xx` asking for a browser session: the terminal is not signed in. Tell the user to run `perf-sentinel login --hub <url>` themselves (it prints a code to approve in a browser signed in to the Hub), and wait until they say it is done. Never run `login` yourself.
@@ -160,4 +161,4 @@ End with a short summary:
 - `references/hub.md`: load at `Connection`. The `perf-sentinel hub` commands and flags, sign-in and error codes, the volume fields, their three states, the window rule and the meaning of each `detections_gaps` value.
 - `scripts/rank.py`: run at `Ranking`. Ranks one or more JSON exports of `perf-sentinel hub findings`.
 - `../perf-tests/references/fix-safety.md`: load at `Fixes`, before proposing any fix.
-- `../perf-tests/references/perf-sentinel.md`: `Install` at `Connection` when the CLI is missing, `Acknowledgment entry` at `False positives`.
+- `../perf-tests/references/perf-sentinel.md`: `Install` at `Connection` when the CLI is missing, `Version check` at `Connection`, `Acknowledgment entry` at `False positives`.
