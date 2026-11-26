@@ -39,7 +39,7 @@ For a whole team, declare the marketplace in the repository's `.claude/settings.
 }
 ```
 
-To update by hand: `claude plugin update perf-sentinel@perf-sentinel`. `claude plugin list` shows the installed version as a 12-character commit, the commit of a release tag.
+To update by hand: `claude plugin update perf-sentinel@perf-sentinel`. `claude plugin list` shows the installed version, the `version` of `.claude-plugin/plugin.json`. Claude Code offers an update only when that field changes, so each release bumps it along with `CHANGELOG.md`.
 
 ## Usage
 

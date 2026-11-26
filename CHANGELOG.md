@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- Ready for Anthropic's plugin directory: `version`, a square icon and the `documentationUrl`, `supportUrl` and `privacyPolicyUrl` fields in `plugin.json`, and `PRIVACY.md`, which lists every network call the skills make. From now on each release bumps `version` in `plugin.json` too, since Claude Code offers an update only when it changes.
+
 ## [0.4.0] - 2026-11-12
 
 ### Added
