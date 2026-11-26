@@ -1,6 +1,7 @@
 {
   "name": "perf-sentinel",
   "displayName": "Perf Sentinel",
+  "version": "0.4.0",
   "description": "Writes performance integration tests that surface N+1, redundant and slow I/O before production, and ranks production findings from Perf Sentinel Hub to fix.",
   "author": {
     "name": "Robin Trassard",
@@ -9,5 +10,9 @@
   "license": "Apache-2.0 AND CC-BY-4.0",
   "homepage": "https://perf-sentinel.dev",
   "repository": "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude",
-  "keywords": ["performance", "testing", "n+1", "opentelemetry", "greenops"]
+  "keywords": ["performance", "testing", "n+1", "opentelemetry", "greenops"],
+  "icon": ".claude-plugin/icon.png",
+  "documentationUrl": "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude/blob/main/README.md",
+  "supportUrl": "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude/issues",
+  "privacyPolicyUrl": "https://github.com/Institut-du-Numerique-Responsable/perf-sentinel-claude/blob/main/PRIVACY.md"
 }
